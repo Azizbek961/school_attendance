@@ -1,0 +1,669 @@
+{% extends 'attendance/base_admin.html' %}
+
+{% block title %}Davomatni Boshqarish - SAMO School{% endblock %}
+{% block page_title %}Davomatni Boshqarish{% endblock %}
+{% block page_subtitle %}Barcha davomat yozuvlarini ko'rish va boshqarish{% endblock %}
+
+{% block content %}
+<div class="dashboard-card">
+    <div class="card-header">
+        <h3>Davomat Yozuvlari</h3>
+        <a href="{% url 'take_attendance' %}" class="btn btn-primary">
+            <i class="fas fa-clipboard-check"></i> Davomat olish
+        </a>
+    </div>
+
+    <div class="card-body">
+        <!-- Filters and Stats -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <form method="get" class="filter-form">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="date" class="form-label">Sana</label>
+                            <input type="date" class="form-control" id="date" name="date"
+                                   value="{{ filter_date|date:'Y-m-d' }}">
+                        </div>
+
+                        <div class="col-md-3">
+                            <label for="class" class="form-label">Sinf</label>
+                            <select class="form-control" id="class" name="class">
+                                <option value="">Barcha sinflar</option>
+                                {% for class in classes %}
+                                <option value="{{ class.name }}"
+                                        {% if class_filter == class.name %}selected{% endif %}>
+                                    {{ class.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label for="subject" class="form-label">Fan</label>
+                            <select class="form-control" id="subject" name="subject">
+                                <option value="">Barcha fanlar</option>
+                                {% for subject in subjects %}
+                                <option value="{{ subject.name }}"
+                                        {% if subject_filter == subject.name %}selected{% endif %}>
+                                    {{ subject.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-filter"></i> Filtrlash
+                            </button>
+                            <a href="{% url 'manage_attendance' %}" class="btn btn-secondary ms-2">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-card bg-primary">
+                    <i class="fas fa-clipboard-list"></i>
+                    <div>
+                        <h4>{{ attendance_records.count }}</h4>
+                        <p>Jami yozuvlar</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card bg-success">
+                    <i class="fas fa-user-check"></i>
+                    <div>
+                        <h4>{{ present_count|default:0 }}</h4>
+                        <p>Borlar</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card bg-danger">
+                    <i class="fas fa-user-times"></i>
+                    <div>
+                        <h4>{{ absent_count|default:0 }}</h4>
+                        <p>Qatnashmaganlar</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card bg-warning">
+                    <i class="fas fa-user-clock"></i>
+                    <div>
+                        <h4>{{ late_count|default:0 }}</h4>
+                        <p>Kech qolganlar</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attendance Records Table -->
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>O'quvchi</th>
+                        <th>Sinf</th>
+                        <th>Fan</th>
+                        <th>O'qituvchi</th>
+                        <th>Sana</th>
+                        <th>Holat</th>
+                        <th>Izoh</th>
+                        <th>Qayd etilgan</th>
+                        <th>Amallar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in attendance_records %}
+                    <tr>
+                        <td>{{ record.id }}</td>
+                        <td>
+                            <div class="user-cell">
+                                <div class="user-avatar student">
+                                    {{ record.student.first_name|first|upper }}
+                                </div>
+                                <div class="user-info">
+                                    <strong>{{ record.student.get_full_name }}</strong>
+                                    <small>{{ record.student.username }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="class-badge">{{ record.class_obj.name }}</span>
+                        </td>
+                        <td>
+                            <span class="subject-badge">{{ record.subject.name }}</span>
+                        </td>
+                        <td>
+                            {% if record.teacher %}
+                            <div class="teacher-cell">
+                                <div class="user-avatar teacher">
+                                    {{ record.teacher.first_name|first|upper }}
+                                </div>
+                                <div class="teacher-info">
+                                    <strong>{{ record.teacher.get_full_name }}</strong>
+                                </div>
+                            </div>
+                            {% else %}
+                            <span class="text-muted">Tayinlanmagan</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="date-info">
+                                <div>{{ record.date|date:"d.m.Y" }}</div>
+                                <small>{{ record.date|date:"l" }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            {% if record.status == 'present' %}
+                            <span class="badge bg-success">Bor</span>
+                            {% elif record.status == 'absent' %}
+                            <span class="badge bg-danger">Yo'q</span>
+                            {% elif record.status == 'late' %}
+                            <span class="badge bg-warning">Kechikdi</span>
+                            {% elif record.status == 'excused' %}
+                            <span class="badge bg-info">Sababli</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if record.notes %}
+                            <span class="notes-text" data-bs-toggle="tooltip" title="{{ record.notes }}">
+                                {{ record.notes|truncatechars:30 }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="date-info">
+                                <div>{{ record.created_at|date:"H:i" }}</div>
+                                <small>{{ record.created_at|date:"d.m.Y" }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{% url 'edit_attendance' record.id %}" class="action-btn-small edit-btn">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'delete_attendance' record.id %}" class="action-btn-small delete-btn"
+                                   onclick="return confirm('Bu davomat yozuvini oʻchirishni tasdiqlaysizmi?')">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                                <button class="action-btn-small view-btn" onclick="viewAttendanceDetails({{ record.id }})">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center">
+                            <div class="empty-state">
+                                <i class="fas fa-clipboard fa-3x"></i>
+                                <h4>Hech qanday davomat yozuvi topilmadi</h4>
+                                <p>Tanlangan filterlar bo'yicha davomat yozuvlari mavjud emas.</p>
+                                <a href="{% url 'take_attendance' %}" class="btn btn-primary">
+                                    <i class="fas fa-clipboard-check"></i> Davomat olish
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if attendance_records.has_other_pages %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if attendance_records.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ attendance_records.previous_page_number }}&date={{ filter_date|date:'Y-m-d' }}&class={{ class_filter }}&subject={{ subject_filter }}">&laquo;</a>
+                </li>
+                {% endif %}
+
+                {% for i in attendance_records.paginator.page_range %}
+                {% if attendance_records.number == i %}
+                <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                {% else %}
+                <li class="page-item"><a class="page-link" href="?page={{ i }}&date={{ filter_date|date:'Y-m-d' }}&class={{ class_filter }}&subject={{ subject_filter }}">{{ i }}</a></li>
+                {% endif %}
+                {% endfor %}
+
+                {% if attendance_records.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ attendance_records.next_page_number }}&date={{ filter_date|date:'Y-m-d' }}&class={{ class_filter }}&subject={{ subject_filter }}">&raquo;</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Attendance Details Modal -->
+<div class="modal fade" id="attendanceDetailsModal" tabindex="-1" aria-labelledby="attendanceDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="attendanceDetailsModalLabel">Davomat Ma'lumotlari</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="attendanceDetailsContent">
+                <!-- Dynamic content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Yopish</button>
+                <a href="#" class="btn btn-primary" id="editAttendanceBtn">Tahrirlash</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// View attendance details
+function viewAttendanceDetails(attendanceId) {
+    // Load attendance details via AJAX
+    fetch(`/attendance/${attendanceId}/details/`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Populate modal content
+            const modalContent = document.getElementById('attendanceDetailsContent');
+            modalContent.innerHTML = `
+                <div class="attendance-details">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h4>Asosiy ma'lumotlar</h4>
+                            <table class="details-table">
+                                <tr>
+                                    <th>O'quvchi:</th>
+                                    <td>${data.student_name}</td>
+                                </tr>
+                                <tr>
+                                    <th>Sinf:</th>
+                                    <td>${data.class_name}</td>
+                                </tr>
+                                <tr>
+                                    <th>Fan:</th>
+                                    <td>${data.subject_name}</td>
+                                </tr>
+                                <tr>
+                                    <th>O'qituvchi:</th>
+                                    <td>${data.teacher_name}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h4>Davomat ma'lumotlari</h4>
+                            <table class="details-table">
+                                <tr>
+                                    <th>Sana:</th>
+                                    <td>${data.date}</td>
+                                </tr>
+                                <tr>
+                                    <th>Holat:</th>
+                                    <td>${data.status_display}</td>
+                                </tr>
+                                <tr>
+                                    <th>Qayd etilgan:</th>
+                                    <td>${data.created_at}</td>
+                                </tr>
+                                <tr>
+                                    <th>Yangilangan:</th>
+                                    <td>${data.updated_at}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    ${data.notes ? `
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h4>Izoh</h4>
+                            <div class="notes-box">
+                                <p>${data.notes}</p>
+                            </div>
+                        </div>
+                    </div>` : ''}
+                </div>
+            `;
+
+            // Set edit button href
+            document.getElementById('editAttendanceBtn').href = `/attendance/edit/${attendanceId}/`;
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('attendanceDetailsModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Davomat maʼlumotlarini yuklashda xatolik yuz berdi');
+        });
+}
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Initialize notes tooltips
+    const notesElements = document.querySelectorAll('.notes-text');
+    notesElements.forEach(element => {
+        element.setAttribute('data-bs-toggle', 'tooltip');
+        element.setAttribute('title', element.getAttribute('title'));
+        new bootstrap.Tooltip(element);
+    });
+
+    // Set today as default date if no date is selected
+    const dateInput = document.getElementById('date');
+    if (!dateInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
+    }
+});
+
+// Auto-submit form on filter change (optional)
+document.addEventListener('DOMContentLoaded', function() {
+    const filterSelects = document.querySelectorAll('#class, #subject');
+    filterSelects.forEach(select => {
+        select.addEventListener('change', function() {
+            this.form.submit();
+        });
+    });
+});
+</script>
+
+<style>
+/* Custom styles for manage_attendance.html */
+.filter-form {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    border-radius: 8px;
+    color: white;
+    margin-bottom: 15px;
+}
+
+.stat-card i {
+    font-size: 24px;
+    opacity: 0.9;
+}
+
+.stat-card h4 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.stat-card p {
+    margin: 0;
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.stat-card.bg-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.stat-card.bg-success { background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%); }
+.stat-card.bg-danger { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); }
+.stat-card.bg-warning { background: linear-gradient(135deg, #f39c12 0%, #d35400 100%); }
+
+.user-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.user-avatar.student {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+}
+
+.user-avatar.teacher {
+    background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-info strong {
+    font-size: 14px;
+    color: #2c3e50;
+}
+
+.user-info small {
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+.class-badge, .subject-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.class-badge {
+    background: #e8f4fd;
+    color: #3498db;
+}
+
+.subject-badge {
+    background: #f0e6ff;
+    color: #9b59b6;
+}
+
+.teacher-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.teacher-info strong {
+    font-size: 14px;
+    color: #2c3e50;
+}
+
+.date-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.date-info div {
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+.date-info small {
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+.notes-text {
+    cursor: help;
+    display: inline-block;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.action-btn-small {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.action-btn-small.edit-btn {
+    background: #e8f4fd;
+    color: #3498db;
+    border: 1px solid #3498db;
+}
+
+.action-btn-small.delete-btn {
+    background: #fde8e8;
+    color: #e74c3c;
+    border: 1px solid #e74c3c;
+}
+
+.action-btn-small.view-btn {
+    background: #f0f9ff;
+    color: #9b59b6;
+    border: 1px solid #9b59b6;
+}
+
+.action-btn-small:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.action-btn-small.edit-btn:hover {
+    background: #3498db;
+    color: white;
+}
+
+.action-btn-small.delete-btn:hover {
+    background: #e74c3c;
+    color: white;
+}
+
+.action-btn-small.view-btn:hover {
+    background: #9b59b6;
+    color: white;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.empty-state i {
+    color: #bdc3c7;
+    margin-bottom: 20px;
+}
+
+.empty-state h4 {
+    color: #7f8c8d;
+    margin-bottom: 10px;
+}
+
+.empty-state p {
+    color: #95a5a6;
+    margin-bottom: 20px;
+}
+
+/* Modal styles */
+.attendance-details {
+    padding: 10px;
+}
+
+.details-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.details-table tr {
+    border-bottom: 1px solid #eee;
+}
+
+.details-table th {
+    text-align: left;
+    padding: 8px 12px 8px 0;
+    font-weight: 600;
+    color: #2c3e50;
+    width: 40%;
+}
+
+.details-table td {
+    padding: 8px 0;
+    color: #34495e;
+}
+
+.notes-box {
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #3498db;
+}
+
+.notes-box p {
+    margin: 0;
+    color: #2c3e50;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .action-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .action-btn-small {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+
+    .user-cell, .teacher-cell {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .stat-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+    }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,745 @@
+{% extends 'attendance/base_admin.html' %}
+
+{% block title %}Foydalanuvchini Tahrirlash - SAMO School{% endblock %}
+{% block page_title %}Foydalanuvchini Tahrirlash{% endblock %}
+{% block page_subtitle %}{{ edit_user.get_full_name }} ma'lumotlarini tahrirlash{% endblock %}
+
+{% block content %}
+<div class="dashboard-card">
+    <div class="card-header">
+        <h3>Foydalanuvchi Ma'lumotlarini Tahrirlash</h3>
+        <a href="{% url 'manage_users' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Orqaga
+        </a>
+    </div>
+
+    <div class="card-body">
+        <form method="post" class="needs-validation" novalidate>
+            {% csrf_token %}
+
+            {% if messages %}
+            <div class="messages mb-4">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Foydalanuvchi ma'lumotlari -->
+            <div class="user-info mb-5">
+                <h4 class="section-title">Asosiy Ma'lumotlar</h4>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="info-item">
+                            <span class="info-label">Foydalanuvchi ID:</span>
+                            <span class="info-value">{{ edit_user.id }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Username:</span>
+                            <span class="info-value">{{ edit_user.username }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Yaratilgan sana:</span>
+                            <span class="info-value">{{ edit_user.date_joined|date:"d.m.Y H:i" }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-item">
+                            <span class="info-label">Oxirgi kirish:</span>
+                            <span class="info-value">
+                                {% if edit_user.last_login %}
+                                    {{ edit_user.last_login|date:"d.m.Y H:i" }}
+                                {% else %}
+                                    Hali kirmagan
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Holat:</span>
+                            <span class="info-value">
+                                {% if edit_user.is_active %}
+                                    <span class="badge bg-success">Faol</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Nofaol</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Admin:</span>
+                            <span class="info-value">
+                                {% if edit_user.is_superuser %}
+                                    <span class="badge bg-danger">Super Admin</span>
+                                {% elif edit_user.is_staff %}
+                                    <span class="badge bg-warning">Staff</span>
+                                {% else %}
+                                    <span class="badge bg-info">Oddiy foydalanuvchi</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tahrirlash formasi -->
+            <div class="edit-form-section">
+                <div class="row g-4">
+                    <!-- Login ma'lumotlari -->
+                    <div class="col-12">
+                        <h4 class="section-title">Login Ma'lumotlari</h4>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="username" class="form-label">Username *</label>
+                        <input type="text" class="form-control" id="username" name="username"
+                               value="{{ edit_user.username }}" required>
+                        <div class="form-text">Foydalanuvchi tizimga kirish uchun login.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="email" class="form-label">Email *</label>
+                        <input type="email" class="form-control" id="email" name="email"
+                               value="{{ edit_user.email }}" required>
+                        <div class="form-text">Foydalanuvchi elektron pochta manzili.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="password" class="form-label">Yangi Parol</label>
+                        <input type="password" class="form-control" id="password" name="password">
+                        <div class="form-text">Parolni faqat o'zgartirmoqchi bo'lsangiz kiriting.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="confirm_password" class="form-label">Parolni Tasdiqlash</label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password">
+                        <div class="form-text">Agar yangi parol kiritgan bo'lsangiz, uni qayta kiriting.</div>
+                    </div>
+
+                    <!-- Shaxsiy ma'lumotlar -->
+                    <div class="col-12">
+                        <h4 class="section-title mt-4">Shaxsiy Ma'lumotlar</h4>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="first_name" class="form-label">Ism *</label>
+                        <input type="text" class="form-control" id="first_name" name="first_name"
+                               value="{{ edit_user.first_name }}" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="last_name" class="form-label">Familiya *</label>
+                        <input type="text" class="form-control" id="last_name" name="last_name"
+                               value="{{ edit_user.last_name }}" required>
+                    </div>
+
+                    <!-- Profil ma'lumotlari -->
+                    <div class="col-12">
+                        <h4 class="section-title mt-4">Profil Ma'lumotlari</h4>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="role" class="form-label">Rol *</label>
+                        <select class="form-select" id="role" name="role" required onchange="toggleClassField()">
+                            <option value="student" {% if profile.role == 'student' %}selected{% endif %}>O'quvchi</option>
+                            <option value="teacher" {% if profile.role == 'teacher' %}selected{% endif %}>O'qituvchi</option>
+                            <option value="admin" {% if profile.role == 'admin' %}selected{% endif %}>Administrator</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6" id="student_class_field"
+                         style="{% if profile.role != 'student' %}display: none;{% endif %}">
+                        <label for="student_class" class="form-label">Sinf</label>
+                        <select class="form-select" id="student_class" name="student_class">
+                            <option value="">Sinfni tanlang</option>
+                            {% for class in classes %}
+                            <option value="{{ class.id }}"
+                                    {% if profile.student_class and profile.student_class.id == class.id %}selected{% endif %}>
+                                {{ class.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="phone" class="form-label">Telefon Raqami</label>
+                        <input type="text" class="form-control" id="phone" name="phone"
+                               value="{{ profile.phone|default:'' }}" placeholder="+998 XX XXX XX XX">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="birth_date" class="form-label">Tug'ilgan Sana</label>
+                        <input type="date" class="form-control" id="birth_date" name="birth_date"
+                               value="{{ profile.birth_date|date:'Y-m-d'|default:'' }}">
+                    </div>
+
+                    <!-- Foydalanuvchi holati -->
+                    <div class="col-12">
+                        <h4 class="section-title mt-4">Foydalanuvchi Holati</h4>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="is_active" name="is_active"
+                                   {% if edit_user.is_active %}checked{% endif %} value="true">
+                            <label class="form-check-label" for="is_active">
+                                Foydalanuvchini faol holatda saqlash
+                            </label>
+                            <div class="form-text">
+                                {% if not edit_user.is_active %}
+                                <span class="text-danger">Diqqat! Foydalanuvchi hozir nofaol holatda.</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Xavfli amallar -->
+                    <div class="col-12">
+                        <h4 class="section-title mt-4 text-danger">Xavfli Amallar</h4>
+                        <div class="alert alert-warning">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-exclamation-triangle me-3 fs-4"></i>
+                                <div>
+                                    <h5>Diqqat!</h5>
+                                    <p class="mb-2">Quyidagi amallar foydalanuvchi hisobini butunlay o'chirib yuboradi:</p>
+                                    <div class="danger-actions">
+                                        <a href="{% url 'delete_user' edit_user.id %}" class="btn btn-outline-danger btn-sm"
+                                           onclick="return confirm('{{ edit_user.get_full_name }} foydalanuvchisini oʻchirishni tasdiqlaysizmi? Bu bilan foydalanuvchining barcha davomat maʼlumotlari ham oʻchiriladi.')">
+                                            <i class="fas fa-trash"></i> Foydalanuvchini o'chirish
+                                        </a>
+                                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="resetPassword()">
+                                            <i class="fas fa-key"></i> Parolni tiklash
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form amallari -->
+                <div class="form-actions mt-5">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save"></i> O'zgarishlarni Saqlash
+                    </button>
+                    <a href="{% url 'manage_users' %}" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-times"></i> Bekor Qilish
+                    </a>
+                    <button type="button" class="btn btn-outline-primary btn-lg" onclick="viewUserHistory()">
+                        <i class="fas fa-history"></i> Tarixni ko'rish
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        <!-- Foydalanuvchi statistikasi -->
+        <div class="user-stats mt-5">
+            <h4 class="section-title">Foydalanuvchi Statistikasi</h4>
+            <div class="stats-grid">
+                {% if profile.role == 'student' %}
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>{{ student_attendance.present|default:"0" }}</h3>
+                        <p>Bor kunlar</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-calendar-times"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>{{ student_attendance.absent|default:"0" }}</h3>
+                        <p>Yo'q kunlar</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-percentage"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>{{ student_attendance.percentage|default:"0" }}%</h3>
+                        <p>Davomat foizi</p>
+                    </div>
+                </div>
+                {% elif profile.role == 'teacher' %}
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>{{ teacher_stats.classes|default:"0" }}</h3>
+                        <p>Boshqaradigan sinflar</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-book"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>{{ teacher_stats.subjects|default:"0" }}</h3>
+                        <p>O'qitadigan fanlar</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3>{{ teacher_stats.attendance|default:"0" }}</h3>
+                        <p>Davomat yozuvlari</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Parol tiklash modal oynasi -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="resetPasswordModalLabel">Parolni Tiklash</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Parol tiklanganda, foydalanuvchiga yangi parol yuboriladi.
+                </div>
+                <p><strong>{{ edit_user.get_full_name }}</strong> foydalanuvchisining parolini tiklashni tasdiqlaysizmi?</p>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="sendEmail">
+                    <label class="form-check-label" for="sendEmail">
+                        Yangi parolni email orqali yuborish
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bekor qilish</button>
+                <button type="button" class="btn btn-warning" onclick="confirmResetPassword()">
+                    <i class="fas fa-key"></i> Parolni tiklash
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tarix modal oynasi -->
+<div class="modal fade" id="userHistoryModal" tabindex="-1" aria-labelledby="userHistoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="userHistoryModalLabel">Foydalanuvchi Tarixi</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="history-content">
+                    <h6>Foydalanuvchi faoliyati</h6>
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-date">Yaratilgan</div>
+                            <div class="timeline-content">
+                                <strong>{{ edit_user.date_joined|date:"d.m.Y H:i" }}</strong>
+                                <p>Foydalanuvchi tizimga qo'shildi</p>
+                            </div>
+                        </div>
+                        {% if edit_user.last_login %}
+                        <div class="timeline-item">
+                            <div class="timeline-date">Oxirgi kirish</div>
+                            <div class="timeline-content">
+                                <strong>{{ edit_user.last_login|date:"d.m.Y H:i" }}</strong>
+                                <p>Tizimga oxirgi marta kirgan vaqti</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <!-- Bu yerda qo'shimcha tarix ma'lumotlari bo'lishi mumkin -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Yopish</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Sinf maydonini rolga qarab ko'rsatish/yashirish
+function toggleClassField() {
+    const roleSelect = document.getElementById('role');
+    const classField = document.getElementById('student_class_field');
+
+    if (roleSelect.value === 'student') {
+        classField.style.display = 'block';
+        document.getElementById('student_class').required = true;
+    } else {
+        classField.style.display = 'none';
+        document.getElementById('student_class').required = false;
+    }
+}
+
+// Parolni tiklash
+function resetPassword() {
+    const modal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
+    modal.show();
+}
+
+function confirmResetPassword() {
+    const sendEmail = document.getElementById('sendEmail').checked;
+
+    // Bu yerda parol tiklash API chaqiruvi bo'lishi mumkin
+    // Hozircha faqat ogohlantirish
+    if (confirm('Parolni tiklashni tasdiqlaysizmi? Yangi parol: "samo123" bo\'ladi.')) {
+        // Simulyatsiya
+        document.getElementById('password').value = 'samo123';
+        document.getElementById('confirm_password').value = 'samo123';
+
+        alert('Parol tiklandi! Yangi parol formaga yozildi.');
+
+        const modal = bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal'));
+        modal.hide();
+    }
+}
+
+// Tarixni ko'rish
+function viewUserHistory() {
+    const modal = new bootstrap.Modal(document.getElementById('userHistoryModal'));
+    modal.show();
+}
+
+// Form validation
+document.addEventListener('DOMContentLoaded', function() {
+    const forms = document.querySelectorAll('.needs-validation');
+    Array.from(forms).forEach(form => {
+        form.addEventListener('submit', event => {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+
+            // Parollarni solishtirish
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm_password').value;
+
+            if (password && password !== confirmPassword) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const confirmField = document.getElementById('confirm_password');
+                confirmField.setCustomValidity('Parollar mos kelmadi');
+                confirmField.classList.add('is-invalid');
+
+                // Xabar ko'rsatish
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'invalid-feedback d-block';
+                errorDiv.textContent = 'Parollar mos kelmadi';
+
+                // Oldingi xatolikni o'chirish
+                const existingError = confirmField.nextElementSibling;
+                if (existingError && existingError.classList.contains('invalid-feedback')) {
+                    existingError.remove();
+                }
+
+                confirmField.parentNode.appendChild(errorDiv);
+            } else {
+                const confirmField = document.getElementById('confirm_password');
+                confirmField.setCustomValidity('');
+                confirmField.classList.remove('is-invalid');
+
+                // Xatolik xabarini o'chirish
+                const existingError = confirmField.nextElementSibling;
+                if (existingError && existingError.classList.contains('invalid-feedback')) {
+                    existingError.remove();
+                }
+            }
+
+            form.classList.add('was-validated');
+        }, false);
+    });
+
+    // Real-time parol solishtirish
+    const passwordField = document.getElementById('password');
+    const confirmField = document.getElementById('confirm_password');
+
+    function validatePasswords() {
+        if (passwordField.value !== confirmField.value) {
+            confirmField.setCustomValidity('Parollar mos kelmadi');
+            confirmField.classList.add('is-invalid');
+        } else {
+            confirmField.setCustomValidity('');
+            confirmField.classList.remove('is-invalid');
+        }
+    }
+
+    passwordField.addEventListener('input', validatePasswords);
+    confirmField.addEventListener('input', validatePasswords);
+
+    // Tug'ilgan sana uchun maksimal sana bugungi kun
+    const today = new Date().toISOString().split('T')[0];
+    const birthDateField = document.getElementById('birth_date');
+    if (birthDateField) {
+        birthDateField.max = today;
+    }
+
+    // Sahifa yuklanganda sinf maydonini tekshirish
+    toggleClassField();
+});
+
+// Form yuborilganda yuklash holatini ko'rsatish
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function() {
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saqlanmoqda...';
+                submitBtn.disabled = true;
+            }
+        });
+    }
+});
+</script>
+
+<style>
+/* Custom styles for edit_user.html */
+.section-title {
+    font-size: 1.2rem;
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.section-title.text-danger {
+    border-bottom-color: #e74c3c;
+    color: #e74c3c;
+}
+
+.user-info {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid #dee2e6;
+}
+
+.info-item {
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.info-label {
+    font-weight: 600;
+    color: #2c3e50;
+    min-width: 150px;
+}
+
+.info-value {
+    color: #34495e;
+    flex: 1;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-start;
+    gap: 1rem;
+    border-top: 1px solid #dee2e6;
+    padding-top: 2rem;
+}
+
+.danger-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
+    color: #856404;
+}
+
+.alert-warning h5 {
+    color: #856404;
+}
+
+.user-stats {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.stat-card {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+}
+
+.stat-info h3 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.stat-info p {
+    margin: 0;
+    color: #7f8c8d;
+    font-size: 14px;
+}
+
+/* Modal styles */
+.history-content {
+    padding: 10px;
+}
+
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #3498db;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -33px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #3498db;
+    border: 2px solid white;
+    box-shadow: 0 0 0 3px #3498db;
+}
+
+.timeline-date {
+    font-weight: 600;
+    color: #3498db;
+    margin-bottom: 5px;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 10px;
+    border-left: 3px solid #3498db;
+}
+
+.timeline-content strong {
+    display: block;
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+.timeline-content p {
+    margin: 0;
+    color: #7f8c8d;
+    font-size: 14px;
+}
+
+/* Form validation */
+.form-control:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
+.form-control.is-invalid {
+    border-color: #e74c3c;
+}
+
+.form-control.is-valid {
+    border-color: #2ecc71;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .form-actions .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .danger-actions {
+        flex-direction: column;
+    }
+
+    .info-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .info-label {
+        margin-bottom: 5px;
+        min-width: 100%;
+    }
+}
+
+/* Loading animation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.fa-spinner {
+    animation: spin 1s linear infinite;
+}
+</style>
+{% endblock %}

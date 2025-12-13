@@ -1,0 +1,706 @@
+<!-- attendance/templates/attendance/login.html -->
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAMO International School - Login</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% load static %}
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #1e40af;
+            --student-color: #3b82f6;
+            --teacher-color: #10b981;
+            --admin-color: #8b5cf6;
+            --light-bg: #f8fafc;
+            --dark-text: #1e293b;
+            --light-text: #64748b;
+            --border-color: #e2e8f0;
+            --error-color: #ef4444;
+            --success-color: #10b981;
+        }
+
+        body {
+            background-color: #f1f5f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            background-image: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+
+        .container {
+            display: flex;
+            width: 100%;
+            max-width: 1200px;
+            min-height: 700px;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            background-color: white;
+        }
+
+        /* Left side - Info panel */
+        .info-panel {
+            flex: 1;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 50px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .logo-icon {
+            background-color: rgba(255, 255, 255, 0.2);
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+        }
+
+        .logo-icon i {
+            font-size: 28px;
+        }
+
+        .logo-text h1 {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .logo-text p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .info-content h2 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+
+        .info-content p {
+            font-size: 16px;
+            line-height: 1.6;
+            opacity: 0.9;
+            margin-bottom: 30px;
+        }
+
+        .features {
+            list-style: none;
+            margin-top: 40px;
+        }
+
+        .features li {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            font-size: 15px;
+        }
+
+        .features i {
+            background-color: rgba(255, 255, 255, 0.2);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 14px;
+        }
+
+        .copyright {
+            font-size: 14px;
+            opacity: 0.7;
+            margin-top: 30px;
+        }
+
+        /* Right side - Login form */
+        .login-panel {
+            flex: 1;
+            padding: 60px 50px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background-color: white;
+        }
+
+        .login-header {
+            margin-bottom: 40px;
+        }
+
+        .login-header h2 {
+            color: var(--dark-text);
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .login-header p {
+            color: var(--light-text);
+            font-size: 16px;
+        }
+
+        .user-type-selector {
+            display: flex;
+            margin-bottom: 30px;
+            background-color: var(--light-bg);
+            border-radius: 12px;
+            padding: 5px;
+        }
+
+        .user-type {
+            flex: 1;
+            text-align: center;
+            padding: 15px 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            color: var(--light-text);
+        }
+
+        .user-type i {
+            margin-right: 8px;
+            font-size: 18px;
+        }
+
+        .user-type.active {
+            background-color: white;
+            color: var(--dark-text);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .user-type.student.active {
+            color: var(--student-color);
+        }
+
+        .user-type.teacher.active {
+            color: var(--teacher-color);
+        }
+
+        .user-type.admin.active {
+            color: var(--admin-color);
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--dark-text);
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .input-with-icon {
+            position: relative;
+        }
+
+        .input-with-icon i {
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--light-text);
+            font-size: 18px;
+        }
+
+        .input-with-icon input {
+            width: 100%;
+            padding: 16px 16px 16px 50px;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .input-with-icon input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .show-password {
+            position: absolute;
+            right: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--light-text);
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .remember-forgot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+        }
+
+        .remember-me input {
+            margin-right: 8px;
+            width: 18px;
+            height: 18px;
+        }
+
+        .forgot-password {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 15px;
+            transition: color 0.3s;
+        }
+
+        .forgot-password:hover {
+            color: var(--secondary-color);
+            text-decoration: underline;
+        }
+
+        .login-button {
+            width: 100%;
+            padding: 18px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-button:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .login-button i {
+            margin-right: 10px;
+            font-size: 20px;
+        }
+
+        .login-button.student {
+            background-color: var(--student-color);
+        }
+
+        .login-button.teacher {
+            background-color: var(--teacher-color);
+        }
+
+        .login-button.admin {
+            background-color: var(--admin-color);
+        }
+
+        .demo-accounts {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: var(--light-bg);
+            border-radius: 12px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .demo-accounts h4 {
+            color: var(--dark-text);
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .demo-accounts p {
+            color: var(--light-text);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .demo-accounts strong {
+            color: var(--dark-text);
+        }
+
+        .error-message {
+            color: var(--error-color);
+            font-size: 14px;
+            margin-top: 8px;
+            display: none;
+        }
+
+        /* Django messages uchun stil */
+        .messages {
+            list-style: none;
+            margin-bottom: 20px;
+        }
+
+        .message {
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .message.error {
+            background-color: #fee;
+            border-left: 4px solid var(--error-color);
+            color: var(--error-color);
+        }
+
+        .message.success {
+            background-color: #f0fdf4;
+            border-left: 4px solid var(--success-color);
+            color: var(--success-color);
+        }
+
+        .message i {
+            margin-right: 10px;
+        }
+
+        /* Responsive design */
+        @media (max-width: 992px) {
+            .container {
+                flex-direction: column;
+                max-width: 600px;
+            }
+
+            .info-panel {
+                padding: 40px 30px;
+            }
+
+            .login-panel {
+                padding: 40px 30px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .user-type-selector {
+                flex-direction: column;
+            }
+
+            .user-type {
+                margin-bottom: 5px;
+            }
+
+            .remember-forgot {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .forgot-password {
+                margin-top: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Information Panel -->
+        <div class="info-panel">
+            <div>
+                <div class="logo">
+                    <div class="logo-icon">
+                        <i class="fas fa-graduation-cap"></i>
+                    </div>
+                    <div class="logo-text">
+                        <h1>SAMO International School</h1>
+                        <p>Davomat tizimi</p>
+                    </div>
+                </div>
+
+                <div class="info-content">
+                    <h2>O'quvchilar davomatini boshqarish tizimi</h2>
+                    <p>Ushbu platforma orqali SAMO International School o'quvchilarining davomatini kuzatib borishingiz, o'qituvchilar fanlari bo'yicha davomat qilishingiz va ma'muriyat tizimni boshqarishingiz mumkin.</p>
+
+                    <ul class="features">
+                        <li><i class="fas fa-check"></i> O'quvchilar uchun shaxsiy dashboard</li>
+                        <li><i class="fas fa-check"></i> O'qituvchilar uchun fanlar va sinflar boshqaruvi</li>
+                        <li><i class="fas fa-check"></i> Ma'muriyat uchun to'liq tizim boshqaruvi</li>
+                        <li><i class="fas fa-check"></i> Davomat statistikasi va hisobotlar</li>
+                        <li><i class="fas fa-check"></i> Har bir fandan alohida davomat qilish</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="copyright">
+                <p>&copy; {% now "Y" %} SAMO International School. Barcha huquqlar himoyalangan.</p>
+            </div>
+        </div>
+
+        <!-- Login Panel -->
+        <div class="login-panel">
+            <div class="login-header">
+                <h2>Hisobingizga kiring</h2>
+                <p>Tizimga kirish uchun foydalanuvchi turini tanlang va hisob ma'lumotlarini kiriting.</p>
+            </div>
+
+            <!-- Django Messages -->
+            {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                <li class="message {% if message.tags %}{{ message.tags }}{% endif %}">
+                    <i class="fas fa-{% if message.tags == 'error' %}exclamation-circle{% else %}check-circle{% endif %}"></i>
+                    {{ message }}
+                </li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            <div class="user-type-selector">
+                <div class="user-type student active" data-type="student">
+                    <i class="fas fa-user-graduate"></i> O'quvchi
+                </div>
+                <div class="user-type teacher" data-type="teacher">
+                    <i class="fas fa-chalkboard-teacher"></i> O'qituvchi
+                </div>
+                <div class="user-type admin" data-type="admin">
+                    <i class="fas fa-user-shield"></i> Administrator
+                </div>
+            </div>
+
+            <!-- Django Form - CSRF token qo'shildi -->
+            <form id="loginForm" method="POST">
+                {% csrf_token %}
+
+                <!-- Hidden input for user type -->
+                <input type="hidden" id="userTypeInput" name="user_type" value="student">
+
+                <div class="form-group">
+                    <label for="username">Foydalanuvchi nomi yoki Email</label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="username" name="username" placeholder="Foydalanuvchi nomi yoki email kiriting" required>
+                    </div>
+                    <div class="error-message" id="username-error">
+                        {% if form.username.errors %}
+                            {% for error in form.username.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Parol</label>
+                    <div class="input-with-icon">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="password" name="password" placeholder="Parolni kiriting" required>
+                        <button type="button" class="show-password" id="togglePassword">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="error-message" id="password-error">
+                        {% if form.password.errors %}
+                            {% for error in form.password.errors %}
+                                {{ error }}
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="remember-forgot">
+                    <div class="remember-me">
+                        <input type="checkbox" id="remember" name="remember_me">
+                        <label for="remember">Meni eslab qol</label>
+                    </div>
+                    <a href="#" class="forgot-password">Parolni unutdingizmi?</a>
+                </div>
+
+                <button type="submit" class="login-button student" id="loginButton">
+                    <i class="fas fa-sign-in-alt"></i> Tizimga kirish
+                </button>
+            </form>
+
+            <!-- Demo accounts (faqat development uchun) -->
+        </div>
+    </div>
+
+    <script>
+        // DOM elementlari
+        const userTypeElements = document.querySelectorAll('.user-type');
+        const loginButton = document.getElementById('loginButton');
+        const loginForm = document.getElementById('loginForm');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const togglePasswordButton = document.getElementById('togglePassword');
+        const usernameError = document.getElementById('username-error');
+        const passwordError = document.getElementById('password-error');
+        const userTypeInput = document.getElementById('userTypeInput');
+
+        // Joriy foydalanuvchi turi
+        let currentUserType = 'student';
+
+        // Django form xatolari bor-yo'qligini tekshirish
+        document.addEventListener('DOMContentLoaded', function() {
+            // Agar form xatolari bo'lsa, ularni ko'rsatish
+            const usernameErrors = "{{ form.username.errors }}";
+            const passwordErrors = "{{ form.password.errors }}";
+
+            if (usernameErrors && usernameErrors !== '') {
+                usernameError.style.display = 'block';
+            }
+
+            if (passwordErrors && passwordErrors !== '') {
+                passwordError.style.display = 'block';
+            }
+
+            // Agar user_type POST requestdan kelgan bo'lsa, uni tanlash
+            const urlParams = new URLSearchParams(window.location.search);
+            const requestedUserType = urlParams.get('user_type');
+            if (requestedUserType) {
+                selectUserType(requestedUserType);
+            }
+        });
+
+        // Foydalanuvchi turini o'zgartirish
+        userTypeElements.forEach(element => {
+            element.addEventListener('click', () => {
+                const userType = element.getAttribute('data-type');
+                selectUserType(userType);
+            });
+        });
+
+        // Foydalanuvchi turini tanlash funksiyasi
+        function selectUserType(type) {
+            // Faqat bitta elementni active qilish
+            userTypeElements.forEach(el => el.classList.remove('active'));
+            document.querySelector(`.user-type.${type}`).classList.add('active');
+
+            // Foydalanuvchi turini yangilash
+            currentUserType = type;
+            userTypeInput.value = type;
+
+            // Login tugmasini yangilash
+            loginButton.className = `login-button ${currentUserType}`;
+            loginButton.innerHTML = `<i class="fas fa-sign-in-alt"></i> Tizimga kirish (${getUserTypeName(currentUserType)})`;
+        }
+
+        // Foydalanuvchi turi nomini olish
+        function getUserTypeName(type) {
+            switch(type) {
+                case 'student': return "O'quvchi";
+                case 'teacher': return "O'qituvchi";
+                case 'admin': return "Admin";
+                default: return "Foydalanuvchi";
+            }
+        }
+
+        // Parolni ko'rsatish/yashirish
+        togglePasswordButton.addEventListener('click', () => {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+
+            // Ikona o'zgartirish
+            const icon = togglePasswordButton.querySelector('i');
+            icon.className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+        });
+
+        // Formani yuborishdan oldin validatsiya
+        loginForm.addEventListener('submit', (e) => {
+            // Xatolarni yashirish
+            usernameError.style.display = 'none';
+            passwordError.style.display = 'none';
+
+            // Ma'lumotlarni olish
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value.trim();
+            let isValid = true;
+
+            // Client-side validatsiya
+            if (username.length < 3) {
+                usernameError.textContent = "Foydalanuvchi nomi kamida 3 ta belgidan iborat bo'lishi kerak";
+                usernameError.style.display = 'block';
+                isValid = false;
+            }
+
+            if (password.length < 6) {
+                passwordError.textContent = "Parol kamida 6 ta belgidan iborat bo'lishi kerak";
+                passwordError.style.display = 'block';
+                isValid = false;
+            }
+
+            // Agar validatsiyadan o'tmasa, formani yuborma
+            if (!isValid) {
+                e.preventDefault();
+                showShakeAnimation();
+            }
+        });
+
+        // Demo hisob ma'lumotlarini tez kirish uchun (faqat development uchun)
+        document.querySelectorAll('.demo-accounts p').forEach((element, index) => {
+            if (index < 3) { // Faqat birinchi 3 ta paragraf (demo hisoblar)
+                element.addEventListener('click', () => {
+                    const userType = element.textContent.includes('O\'quvchi') ? 'student' :
+                                    element.textContent.includes('O\'qituvchi') ? 'teacher' : 'admin';
+
+                    // Foydalanuvchi turini tanlash
+                    selectUserType(userType);
+
+                    // Demo ma'lumotlarni formaga kiritish
+                    const demoAccounts = {
+                        'student': { username: 'student', password: 'password123' },
+                        'teacher': { username: 'teacher', password: 'password123' },
+                        'admin': { username: 'admin', password: 'password123' }
+                    };
+
+                    usernameInput.value = demoAccounts[userType].username;
+                    passwordInput.value = demoAccounts[userType].password;
+
+                    // Xatolarni yashirish
+                    usernameError.style.display = 'none';
+                    passwordError.style.display = 'none';
+                });
+
+                // Kursorni o'zgartirish
+                element.style.cursor = 'pointer';
+                element.title = "Ushbu demo hisob ma'lumotlarini formaga kiriting";
+            }
+        });
+
+        // Tebranish animatsiyasi
+        function showShakeAnimation() {
+            loginForm.style.animation = 'shake 0.5s';
+            setTimeout(() => {
+                loginForm.style.animation = '';
+            }, 500);
+        }
+
+        // Tebranish animatsiyasi uchun CSS qo'shish
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes shake {
+                0%, 100% {transform: translateX(0);}
+                10%, 30%, 50%, 70%, 90% {transform: translateX(-5px);}
+                20%, 40%, 60%, 80% {transform: translateX(5px);}
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

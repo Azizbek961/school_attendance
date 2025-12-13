@@ -1,0 +1,311 @@
+{% extends 'attendance/base_admin.html' %}
+
+{% block title %}Yangi Foydalanuvchi Qo'shish - SAMO School{% endblock %}
+{% block page_title %}Yangi Foydalanuvchi Qo'shish{% endblock %}
+{% block page_subtitle %}Yangi foydalanuvchi yarating va tizimga qo'shing{% endblock %}
+
+{% block content %}
+<div class="dashboard-card">
+    <div class="card-header">
+        <h3>Foydalanuvchi Ma'lumotlari</h3>
+        <a href="{% url 'manage_users' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Orqaga
+        </a>
+    </div>
+
+    <div class="card-body">
+        <form method="post" class="needs-validation" novalidate>
+            {% csrf_token %}
+
+            {% if messages %}
+            <div class="messages mb-4">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="row g-4">
+                <!-- Asosiy ma'lumotlar -->
+                <div class="col-12">
+                    <h4 class="section-title">Asosiy Ma'lumotlar</h4>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="username" class="form-label">Username *</label>
+                    <input type="text" class="form-control" id="username" name="username"
+                           value="{{ form.username.value|default:'' }}" required>
+                    <div class="form-text">Foydalanuvchi tizimga kirish uchun login.</div>
+                    {% if form.username.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.username.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6">
+                    <label for="email" class="form-label">Email *</label>
+                    <input type="email" class="form-control" id="email" name="email"
+                           value="{{ form.email.value|default:'' }}" required>
+                    <div class="form-text">Foydalanuvchi elektron pochta manzili.</div>
+                    {% if form.email.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.email.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6">
+                    <label for="password" class="form-label">Parol *</label>
+                    <input type="password" class="form-control" id="password" name="password" required>
+                    <div class="form-text">Kamida 8 belgidan iborat parol yarating.</div>
+                    {% if form.password.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.password.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6">
+                    <label for="confirm_password" class="form-label">Parolni Tasdiqlash *</label>
+                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                    <div class="form-text">Yuqoridagi parolni qayta kiriting.</div>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="first_name" class="form-label">Ism *</label>
+                    <input type="text" class="form-control" id="first_name" name="first_name"
+                           value="{{ form.first_name.value|default:'' }}" required>
+                    {% if form.first_name.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.first_name.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6">
+                    <label for="last_name" class="form-label">Familiya *</label>
+                    <input type="text" class="form-control" id="last_name" name="last_name"
+                           value="{{ form.last_name.value|default:'' }}" required>
+                    {% if form.last_name.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.last_name.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Role va profil ma'lumotlari -->
+                <div class="col-12">
+                    <h4 class="section-title mt-4">Rol va Profil Ma'lumotlari</h4>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="role" class="form-label">Rol *</label>
+                    <select class="form-select" id="role" name="role" required onchange="toggleClassField()">
+                        <option value="" disabled {% if not form.role.value %}selected{% endif %}>Rolni tanlang</option>
+                        <option value="student" {% if form.role.value == 'student' %}selected{% endif %}>O'quvchi</option>
+                        <option value="teacher" {% if form.role.value == 'teacher' %}selected{% endif %}>O'qituvchi</option>
+                        <option value="admin" {% if form.role.value == 'admin' %}selected{% endif %}>Administrator</option>
+                    </select>
+                    {% if form.role.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.role.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6" id="student_class_field" style="display: none;">
+                    <label for="student_class" class="form-label">Sinf</label>
+                    <select class="form-select" id="student_class" name="student_class">
+                        <option value="" selected>Sinfni tanlang</option>
+                        {% for class in form.student_class.field.queryset %}
+                        <option value="{{ class.id }}" {% if form.student_class.value == class.id %}selected{% endif %}>
+                            {{ class.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% if form.student_class.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.student_class.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6">
+                    <label for="phone" class="form-label">Telefon Raqami</label>
+                    <input type="text" class="form-control" id="phone" name="phone"
+                           value="{{ form.phone.value|default:'' }}" placeholder="+998 XX XXX XX XX">
+                    {% if form.phone.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.phone.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6">
+                    <label for="birth_date" class="form-label">Tug'ilgan Sana</label>
+                    <input type="date" class="form-control" id="birth_date" name="birth_date"
+                           value="{{ form.birth_date.value|default:'' }}">
+                    {% if form.birth_date.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.birth_date.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Form validation errorlar -->
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger mt-4">
+                <h5>Xatoliklar:</h5>
+                <ul class="mb-0">
+                    {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Amallar -->
+            <div class="form-actions mt-5">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-save"></i> Foydalanuvchini Saqlash
+                </button>
+                <a href="{% url 'manage_users' %}" class="btn btn-secondary btn-lg">
+                    <i class="fas fa-times"></i> Bekor Qilish
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Sinf maydonini rolga qarab ko'rsatish/yashirish
+function toggleClassField() {
+    const roleSelect = document.getElementById('role');
+    const classField = document.getElementById('student_class_field');
+
+    if (roleSelect.value === 'student') {
+        classField.style.display = 'block';
+        document.getElementById('student_class').required = true;
+    } else {
+        classField.style.display = 'none';
+        document.getElementById('student_class').required = false;
+    }
+}
+
+// Sahifa yuklanganda sinf maydonini tekshirish
+document.addEventListener('DOMContentLoaded', function() {
+    toggleClassField();
+
+    // Form validation
+    const forms = document.querySelectorAll('.needs-validation');
+    Array.from(forms).forEach(form => {
+        form.addEventListener('submit', event => {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+
+            // Parollarni solishtirish
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm_password').value;
+
+            if (password !== confirmPassword) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const confirmField = document.getElementById('confirm_password');
+                confirmField.setCustomValidity('Parollar mos kelmadi');
+                confirmField.classList.add('is-invalid');
+
+                // Xabar ko'rsatish
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'invalid-feedback d-block';
+                errorDiv.textContent = 'Parollar mos kelmadi';
+
+                // Oldingi xatolikni o'chirish
+                const existingError = confirmField.nextElementSibling;
+                if (existingError && existingError.classList.contains('invalid-feedback')) {
+                    existingError.remove();
+                }
+
+                confirmField.parentNode.appendChild(errorDiv);
+            } else {
+                const confirmField = document.getElementById('confirm_password');
+                confirmField.setCustomValidity('');
+                confirmField.classList.remove('is-invalid');
+
+                // Xatolik xabarini o'chirish
+                const existingError = confirmField.nextElementSibling;
+                if (existingError && existingError.classList.contains('invalid-feedback')) {
+                    existingError.remove();
+                }
+            }
+
+            form.classList.add('was-validated');
+        }, false);
+    });
+
+    // Real-time parol solishtirish
+    const passwordField = document.getElementById('password');
+    const confirmField = document.getElementById('confirm_password');
+
+    function validatePasswords() {
+        if (passwordField.value !== confirmField.value) {
+            confirmField.setCustomValidity('Parollar mos kelmadi');
+            confirmField.classList.add('is-invalid');
+        } else {
+            confirmField.setCustomValidity('');
+            confirmField.classList.remove('is-invalid');
+        }
+    }
+
+    passwordField.addEventListener('input', validatePasswords);
+    confirmField.addEventListener('input', validatePasswords);
+});
+
+// Tug'ilgan sana uchun maksimal sana bugungi kun
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('birth_date').max = today;
+});
+</script>
+
+<style>
+.section-title {
+    font-size: 1.2rem;
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-start;
+    gap: 1rem;
+    border-top: 1px solid #dee2e6;
+    padding-top: 2rem;
+}
+
+.needs-validation .form-control:valid {
+    border-color: #28a745;
+}
+
+.needs-validation .form-control:invalid {
+    border-color: #dc3545;
+}
+
+.form-text {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+</style>
+{% endblock %}

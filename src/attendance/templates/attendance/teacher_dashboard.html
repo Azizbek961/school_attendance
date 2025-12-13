@@ -1,0 +1,687 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}O'qituvchi Dashboard - SAMO School{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Dashboard Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-1">Xush kelibsiz, {{ request.user.get_full_name }}!</h4>
+                            <p class="text-muted mb-0">O'qituvchi Dashboard | Bugun: {% now "d F Y, l" %}</p>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <button class="btn btn-primary" onclick="showAttendanceModal()">
+                                <i class="fas fa-clipboard-check me-2"></i>Davomat olish
+                            </button>
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center" type="button" data-bs-toggle="dropdown">
+                                    <div class="avatar-circle bg-primary text-white me-2">
+                                        {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
+                                    </div>
+                                    <span>O'qituvchi</span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="{% url 'settings' %}"><i class="fas fa-cog me-2"></i> Sozlamalar</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{% url 'logout' %}"><i class="fas fa-sign-out-alt me-2"></i> Chiqish</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-primary border-4 shadow-sm h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-primary text-uppercase mb-1">
+                                O'qitadigan fanlar
+                            </div>
+                            <div class="h5 mb-0 fw-bold text-gray-800">{{ my_subjects.count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-book fa-2x text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-success border-4 shadow-sm h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-success text-uppercase mb-1">
+                                Sinf va guruhlar
+                            </div>
+                            <div class="h5 mb-0 fw-bold text-gray-800">{{ my_classes.count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-school fa-2x text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-warning border-4 shadow-sm h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-warning text-uppercase mb-1">
+                                Bugungi davomat
+                            </div>
+                            <div class="h5 mb-0 fw-bold text-gray-800">{{ today_attendance|default:"0" }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar-check fa-2x text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-info border-4 shadow-sm h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-info text-uppercase mb-1">
+                                Umumiy davomat
+                            </div>
+                            <div class="h5 mb-0 fw-bold text-gray-800">{{ attendance_percentage|default:"100" }}%</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chart-line fa-2x text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-xl-8">
+            <!-- Subjects Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 fw-bold text-primary">
+                        <i class="fas fa-book me-2"></i>Mening fanlarim
+                    </h6>
+                    <a href="{% url 'teacher_my_subjects' %}" class="btn btn-sm btn-outline-primary">
+                        Barchasini ko'rish
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if my_subjects %}
+                    <div class="row">
+                        {% for subject in my_subjects %}
+                        <div class="col-md-6 mb-3">
+                            <div class="card h-100 border">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ subject.name }}</h5>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <small class="text-muted">
+                                            <i class="fas fa-clock me-1"></i>{{ subject.lessons_per_week }} soat/hafta
+                                        </small>
+                                        <small class="text-muted">
+                                            <i class="fas fa-users me-1"></i>{{ subject.classes.count }} sinf
+                                        </small>
+                                    </div>
+                                    {% if subject.schedule %}
+                                    <p class="card-text">
+                                        <small><i class="fas fa-calendar-alt me-1"></i>{{ subject.schedule|truncatechars:40 }}</small>
+                                    </p>
+                                    {% endif %}
+                                    <button class="btn btn-sm btn-outline-primary w-100 mt-2" onclick="takeAttendanceForSubject({{ subject.id }})">
+                                        <i class="fas fa-clipboard-check me-1"></i>Davomat olish
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-book fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Sizga hali fanlar biriktirilmagan</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Attendance -->
+            <div class="card shadow-sm">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 fw-bold text-primary">
+                        <i class="fas fa-history me-2"></i>So'nggi davomatlar
+                    </h6>
+                    <a href="{% url 'teacher_my_attendance' %}" class="btn btn-sm btn-outline-primary">
+                        Barchasini ko'rish
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if recent_attendance %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>O'quvchi</th>
+                                    <th>Fan</th>
+                                    <th>Sinf</th>
+                                    <th>Holat</th>
+                                    <th>Vaqt</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in recent_attendance %}
+                                <tr>
+                                    <td>{{ record.student.get_full_name }}</td>
+                                    <td>{{ record.subject.name }}</td>
+                                    <td>{{ record.class_obj.name }}</td>
+                                    <td>
+                                        {% if record.status == 'present' %}
+                                        <span class="badge bg-success">Present</span>
+                                        {% elif record.status == 'absent' %}
+                                        <span class="badge bg-danger">Absent</span>
+                                        {% elif record.status == 'late' %}
+                                        <span class="badge bg-warning">Late</span>
+                                        {% else %}
+                                        <span class="badge bg-info">Excused</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ record.created_at|date:"H:i" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Hali davomat yozuvlari yo'q</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-xl-4">
+            <!-- Classes Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 fw-bold text-primary">
+                        <i class="fas fa-school me-2"></i>Mening sinflarim
+                    </h6>
+                    <a href="{% url 'teacher_my_classes' %}" class="btn btn-sm btn-outline-primary">
+                        Barchasini ko'rish
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if my_classes %}
+                    <div class="list-group list-group-flush">
+                        {% for class in my_classes %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ class.name }}</h6>
+                                <small class="text-muted">
+                                    <i class="fas fa-users me-1"></i>{{ class.students.count }} o'quvchi
+                                    {% if class.teacher == request.user %}
+                                    <span class="badge bg-success ms-2">Sinf rahbari</span>
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <button class="btn btn-sm btn-primary" onclick="showClassAttendanceModal({{ class.id }})">
+                                <i class="fas fa-clipboard-check"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-school fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Siz hali hech qanday sinfda dars bermaysiz</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Today's Schedule -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 fw-bold text-primary">
+                        <i class="fas fa-calendar-day me-2"></i>Bugungi darslar
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div id="todaySchedule">
+                        <div class="text-center py-3">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">Yuklanmoqda...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Jadval yuklanmoqda...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card shadow-sm">
+                <div class="card-header py-3">
+                    <h6 class="m-0 fw-bold text-primary">
+                        <i class="fas fa-bolt me-2"></i>Tezkor amallar
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <button class="btn btn-outline-primary w-100 h-100 p-3" onclick="showAttendanceModal()">
+                                <i class="fas fa-clipboard-check fa-2x mb-2"></i>
+                                <div>Davomat olish</div>
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <a href="{% url 'teacher_my_subjects' %}" class="btn btn-outline-success w-100 h-100 p-3">
+                                <i class="fas fa-book fa-2x mb-2"></i>
+                                <div>Fanlarim</div>
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{% url 'teacher_my_classes' %}" class="btn btn-outline-warning w-100 h-100 p-3">
+                                <i class="fas fa-school fa-2x mb-2"></i>
+                                <div>Sinflarim</div>
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{% url 'teacher_reports' %}" class="btn btn-outline-info w-100 h-100 p-3">
+                                <i class="fas fa-chart-bar fa-2x mb-2"></i>
+                                <div>Hisobotlar</div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attendance Modal -->
+<div class="modal fade" id="attendanceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Davomat olish</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="attendanceModalBody">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Class Subjects Modal -->
+<div class="modal fade" id="classSubjectsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Fan tanlash</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="classSubjectsModalBody">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Subject Classes Modal -->
+<div class="modal fade" id="subjectClassesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Sinf tanlash</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="subjectClassesModalBody">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// DOM yuklanganda
+document.addEventListener('DOMContentLoaded', function() {
+    loadTodaySchedule();
+});
+
+// Bugungi jadvalni yuklash
+function loadTodaySchedule() {
+    fetch('{% url "teacher_today_schedule_json" %}')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('todaySchedule');
+            if (data.attendance_records && data.attendance_records.length > 0) {
+                let html = '<div class="list-group list-group-flush">';
+                data.attendance_records.forEach(item => {
+                    html += `
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">${item.subject_name}</h6>
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>${item.time}
+                                        <i class="fas fa-school ms-2 me-1"></i>${item.class_name}
+                                    </small>
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary" onclick="takeAttendanceDirect(${item.class_id}, ${item.subject_id})">
+                                    Davomat
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = `
+                    <div class="text-center py-3">
+                        <i class="fas fa-calendar-times fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">Bugun dars yo'q</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading schedule:', error);
+            document.getElementById('todaySchedule').innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> Jadval yuklanmadi
+                </div>
+            `;
+        });
+}
+
+// Davomat modalini ko'rsatish
+function showAttendanceModal() {
+    const modalBody = document.getElementById('attendanceModalBody');
+    modalBody.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Yuklanmoqda...</span>
+            </div>
+            <p class="mt-2">Davomat formasi yuklanmoqda...</p>
+        </div>
+    `;
+
+    fetch('{% url "teacher_take_attendance_form" %}')
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.text();
+        })
+        .then(html => {
+            modalBody.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            modalBody.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i> Forma yuklanmadi
+                </div>
+            `;
+        });
+
+    const modal = new bootstrap.Modal(document.getElementById('attendanceModal'));
+    modal.show();
+}
+
+// Sinf uchun fanlarni ko'rsatish
+function showClassAttendanceModal(classId) {
+    const modalBody = document.getElementById('classSubjectsModalBody');
+    modalBody.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Yuklanmoqda...</span>
+            </div>
+            <p class="mt-2">Fanlar yuklanmoqda...</p>
+        </div>
+    `;
+
+    fetch(`/teacher/class/${classId}/subjects/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.subjects && data.subjects.length > 0) {
+                let html = `
+                    <p>Sinf uchun fan tanlang:</p>
+                    <div class="list-group">
+                `;
+                data.subjects.forEach(subject => {
+                    html += `
+                        <a href="#" class="list-group-item list-group-item-action" onclick="takeAttendanceDirect(${classId}, ${subject.id})">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">${subject.name}</h6>
+                                <small>${subject.lessons_per_week} soat/hafta</small>
+                            </div>
+                            <small class="text-muted">${subject.schedule || 'Jadval mavjud emas'}</small>
+                        </a>
+                    `;
+                });
+                html += '</div>';
+                modalBody.innerHTML = html;
+            } else {
+                modalBody.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Bu sinfda sizning fanlaringiz yo'q
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            modalBody.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Ma'lumotlar yuklanmadi
+                </div>
+            `;
+        });
+
+    const modal = new bootstrap.Modal(document.getElementById('classSubjectsModal'));
+    modal.show();
+}
+
+// Fan uchun sinflarni ko'rsatish
+function takeAttendanceForSubject(subjectId) {
+    const modalBody = document.getElementById('subjectClassesModalBody');
+    modalBody.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Yuklanmoqda...</span>
+            </div>
+            <p class="mt-2">Sinflar yuklanmoqda...</p>
+        </div>
+    `;
+
+    fetch(`/teacher/subject/${subjectId}/classes/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.classes && data.classes.length > 0) {
+                let html = `
+                    <p>Fan uchun sinf tanlang:</p>
+                    <div class="list-group">
+                `;
+                data.classes.forEach(cls => {
+                    html += `
+                        <a href="#" class="list-group-item list-group-item-action" onclick="takeAttendanceDirect(${cls.id}, ${subjectId})">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">${cls.name}</h6>
+                                <small>${cls.student_count} o'quvchi</small>
+                            </div>
+                            <small class="text-muted">${cls.room || 'Xona mavjud emas'}</small>
+                        </a>
+                    `;
+                });
+                html += '</div>';
+                modalBody.innerHTML = html;
+            } else {
+                modalBody.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Bu fan hech qanday sinfga biriktirilmagan
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            modalBody.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Ma'lumotlar yuklanmadi
+                </div>
+            `;
+        });
+
+    const modal = new bootstrap.Modal(document.getElementById('subjectClassesModal'));
+    modal.show();
+}
+
+// To'g'ridan-to'g'ri davomat sahifasiga o'tish
+function takeAttendanceDirect(classId, subjectId) {
+    window.location.href = `/teacher/class/${classId}/take-attendance/${subjectId}/`;
+}
+
+// Modal ichidagi sinf tanlanganda fanlarni yuklash
+function loadSubjectsForClass(classId) {
+    if (!classId) {
+        document.getElementById('subjectContainer').style.display = 'none';
+        document.getElementById('dateContainer').style.display = 'none';
+        document.getElementById('startAttendanceBtn').disabled = true;
+        return;
+    }
+
+    fetch(`/teacher/class/${classId}/subjects/`)
+        .then(response => response.json())
+        .then(data => {
+            const subjectSelect = document.getElementById('subjectSelect');
+            subjectSelect.innerHTML = '<option value="">Fanni tanlang</option>';
+
+            if (data.subjects && data.subjects.length > 0) {
+                data.subjects.forEach(subject => {
+                    subjectSelect.innerHTML += `<option value="${subject.id}">${subject.name}</option>`;
+                });
+                document.getElementById('subjectContainer').style.display = 'block';
+                document.getElementById('dateContainer').style.display = 'block';
+            } else {
+                document.getElementById('subjectContainer').style.display = 'none';
+                document.getElementById('dateContainer').style.display = 'none';
+            }
+
+            updateStartButton();
+        })
+        .catch(err => {
+            console.error('Subjects load error:', err);
+        });
+}
+
+// Tugmani yangilash
+function updateStartButton() {
+    const classId = document.getElementById('classSelect').value;
+    const subjectId = document.getElementById('subjectSelect').value;
+    const date = document.getElementById('attendanceDate').value;
+
+    document.getElementById('startAttendanceBtn').disabled = !(classId && subjectId && date);
+}
+
+// Modal ichidagi davotni boshlash
+function startAttendance() {
+    const classId = document.getElementById('classSelect').value;
+    const subjectId = document.getElementById('subjectSelect').value;
+
+    if (classId && subjectId) {
+        window.location.href = `/teacher/class/${classId}/take-attendance/${subjectId}/`;
+    }
+}
+
+// Har 5 daqiqada jadvalni yangilash
+setInterval(loadTodaySchedule, 300000);
+</script>
+
+<style>
+/* Avatar circle */
+.avatar-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+/* Card hover effects */
+.card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+}
+
+/* Custom colors */
+.border-primary { border-color: #4e73df !important; }
+.border-success { border-color: #1cc88a !important; }
+.border-warning { border-color: #f6c23e !important; }
+.border-info { border-color: #36b9cc !important; }
+
+/* Quick action buttons */
+.btn-outline-primary:hover, .btn-outline-success:hover,
+.btn-outline-warning:hover, .btn-outline-info:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s ease;
+}
+
+/* List group items */
+.list-group-item-action:hover {
+    background-color: #f8f9fa;
+    cursor: pointer;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container-fluid {
+        padding: 15px;
+    }
+
+    .card-header h6 {
+        font-size: 0.9rem;
+    }
+
+    .btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+}
+</style>
+{% endblock %}

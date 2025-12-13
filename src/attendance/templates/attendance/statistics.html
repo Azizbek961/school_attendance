@@ -1,0 +1,1084 @@
+{% extends 'attendance/base_admin.html' %}
+
+{% block title %}Statistika - SAMO School{% endblock %}
+{% block page_title %}Statistika{% endblock %}
+{% block page_subtitle %}Davomat statistikasi va tahlillar{% endblock %}
+
+{% block content %}
+<div class="dashboard-card">
+    <div class="card-header">
+        <h3>Davomat Statistikasi</h3>
+        <div class="card-header-actions">
+            <button type="button" class="btn btn-outline-primary" onclick="printStatistics()">
+                <i class="fas fa-print"></i> Chop etish
+            </button>
+        </div>
+    </div>
+
+    <div class="card-body">
+        <!-- Filtrlar -->
+        <div class="filter-section mb-5">
+            <h4 class="section-title">Filtrlar</h4>
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="period" class="form-label">Davr</label>
+                    <select class="form-control" id="period" name="period" onchange="this.form.submit()">
+                        <option value="week" {% if period == 'week' %}selected{% endif %}>1 hafta</option>
+                        <option value="month" {% if period == 'month' %}selected{% endif %}>1 oy</option>
+                        <option value="quarter" {% if period == 'quarter' %}selected{% endif %}>3 oy</option>
+                        <option value="year" {% if period == 'year' %}selected{% endif %}>1 yil</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="class" class="form-label">Sinf</label>
+                    <select class="form-control" id="class" name="class" onchange="this.form.submit()">
+                        <option value="">Barcha sinflar</option>
+                        {% for class in classes %}
+                        <option value="{{ class.name }}" {% if class_filter == class.name %}selected{% endif %}>
+                            {{ class.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="subject" class="form-label">Fan</label>
+                    <select class="form-control" id="subject" name="subject" onchange="this.form.submit()">
+                        <option value="">Barcha fanlar</option>
+                        <!-- Bu yerda fanlar ro'yxati AJAX orqali yuklanadi -->
+                    </select>
+                </div>
+
+                <div class="col-md-3 d-flex align-items-end">
+                    <a href="{% url 'statistics' %}" class="btn btn-secondary w-100">
+                        <i class="fas fa-redo"></i> Tozalash
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Umumiy statistika -->
+        <div class="overall-stats mb-5">
+            <h4 class="section-title">Umumiy Statistika</h4>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="stat-card primary">
+                        <div class="stat-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h2>{{ overall_percentage }}%</h2>
+                            <p>Umumiy davomat foizi</p>
+                        </div>
+                        <div class="stat-trend">
+                            {% if overall_percentage >= 90 %}
+                                <span class="trend-up"><i class="fas fa-arrow-up"></i> Yuqori</span>
+                            {% elif overall_percentage >= 70 %}
+                                <span class="trend-neutral"><i class="fas fa-minus"></i> O'rtacha</span>
+                            {% else %}
+                                <span class="trend-down"><i class="fas fa-arrow-down"></i> Past</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-8">
+                    <div class="chart-container">
+                        <h5>Davomat foizi: {{ period_display }}</h5>
+                        <div class="progress overall-progress">
+                            <div class="progress-bar" role="progressbar"
+                                 style="width: {{ overall_percentage }}%"
+                                 aria-valuenow="{{ overall_percentage }}"
+                                 aria-valuemin="0" aria-valuemax="100">
+                                {{ overall_percentage }}%
+                            </div>
+                        </div>
+                        <div class="progress-labels d-flex justify-content-between mt-2">
+                            <span>0%</span>
+                            <span>50%</span>
+                            <span>100%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fanlar bo'yicha statistika -->
+        <div class="subject-stats mb-5">
+            <h4 class="section-title">Fanlar Bo'yicha Davomat</h4>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="chart-container" style="height: 400px;">
+                        <canvas id="subjectChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Fan</th>
+                                    <th>Davomat foizi</th>
+                                    <th>Holat</th>
+                                    <th>Tahmin</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in subject_stats %}
+                                <tr>
+                                    <td>
+                                        <div class="subject-cell">
+                                            <div class="subject-icon">
+                                                <i class="fas fa-book"></i>
+                                            </div>
+                                            <div class="subject-info">
+                                                <strong>{{ stat.name }}</strong>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="percentage-cell">
+                                            <span class="percentage-value">{{ stat.percentage }}%</span>
+                                            <div class="progress mini-progress">
+                                                <div class="progress-bar
+                                                    {% if stat.percentage >= 90 %}bg-success
+                                                    {% elif stat.percentage >= 70 %}bg-warning
+                                                    {% else %}bg-danger{% endif %}"
+                                                    style="width: {{ stat.percentage }}%">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if stat.percentage >= 90 %}
+                                            <span class="badge bg-success">A'lo</span>
+                                        {% elif stat.percentage >= 70 %}
+                                            <span class="badge bg-warning">Qoniqarli</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Qoniqarsiz</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if stat.percentage >= 90 %}
+                                            <i class="fas fa-thumbs-up text-success"></i> Yuqori
+                                        {% elif stat.percentage >= 70 %}
+                                            <i class="fas fa-balance-scale text-warning"></i> O'rtacha
+                                        {% else %}
+                                            <i class="fas fa-exclamation-triangle text-danger"></i> Ta'kidlash kerak
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">
+                                        <div class="empty-state">
+                                            <i class="fas fa-chart-bar fa-3x"></i>
+                                            <h4>Statistika mavjud emas</h4>
+                                            <p>Tanlangan davr uchun ma'lumotlar topilmadi</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Qo'shimcha statistikalar -->
+        <div class="additional-stats">
+            <div class="row">
+                <!-- Sinflar bo'yicha statistika -->
+                <div class="col-md-6 mb-4">
+                    <div class="stats-card">
+                        <div class="card-header">
+                            <h5>Sinflar Bo'yicha Davomat</h5>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="loadClassStats()">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container" style="height: 300px;">
+                                <canvas id="classChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Oylik tendensiya -->
+                <div class="col-md-6 mb-4">
+                    <div class="stats-card">
+                        <div class="card-header">
+                            <h5>Oylik Tendensiya</h5>
+                            <div class="period-selector">
+                                <select class="form-control form-control-sm" id="trendPeriod" onchange="loadTrendData()">
+                                    <option value="3">3 oy</option>
+                                    <option value="6">6 oy</option>
+                                    <option value="12">12 oy</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container" style="height: 300px;">
+                                <canvas id="trendChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Eng yaxshi/o'ta o'quvchilar -->
+                <div class="col-md-6 mb-4">
+                    <div class="stats-card">
+                        <div class="card-header">
+                            <h5>Eng Yaxshi Davomatchilar</h5>
+                            <span class="badge bg-success">Top 5</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="top-students" id="topStudentsList">
+                                <!-- AJAX orqali yuklanadi -->
+                                <div class="text-center py-3">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Yuklanmoqda...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Eng past davomat -->
+                <div class="col-md-6 mb-4">
+                    <div class="stats-card">
+                        <div class="card-header">
+                            <h5>Ta'kidlash Kerak Bo'lganlar</h5>
+                            <span class="badge bg-danger">Diqqat</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="low-attendance" id="lowAttendanceList">
+                                <!-- AJAX orqali yuklanadi -->
+                                <div class="text-center py-3">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Yuklanmoqda...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistik ma'lumotlar -->
+        <div class="data-summary mt-5">
+            <h4 class="section-title">Statistik Ma'lumotlar</h4>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="info-box">
+                        <div class="info-icon">
+                            <i class="fas fa-calendar-alt"></i>
+                        </div>
+                        <div class="info-content">
+                            <h5>Davr</h5>
+                            <p id="periodDisplay">
+                                {% if period == 'week' %}1 hafta
+                                {% elif period == 'month' %}1 oy
+                                {% elif period == 'quarter' %}3 oy
+                                {% else %}1 yil{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="info-box">
+                        <div class="info-icon">
+                            <i class="fas fa-filter"></i>
+                        </div>
+                        <div class="info-content">
+                            <h5>Filtr</h5>
+                            <p>
+                                {% if class_filter %}
+                                    Sinf: {{ class_filter }}
+                                {% else %}
+                                    Barcha sinflar
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="info-box">
+                        <div class="info-icon">
+                            <i class="fas fa-chart-pie"></i>
+                        </div>
+                        <div class="info-content">
+                            <h5>Fanlar soni</h5>
+                            <p>{{ subject_stats|length }} ta</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="info-box">
+                        <div class="info-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="info-content">
+                            <h5>Yangilangan</h5>
+                            <p id="lastUpdated">{% now "H:i" %}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// Global variables
+let subjectChart = null;
+let classChart = null;
+let trendChart = null;
+
+// Fanlar chartini yaratish
+function createSubjectChart() {
+    const ctx = document.getElementById('subjectChart').getContext('2d');
+
+    // Ma'lumotlarni olish
+    const subjectNames = [];
+    const subjectPercentages = [];
+    const backgroundColors = [];
+
+    {% for stat in subject_stats %}
+        subjectNames.push('{{ stat.name|escapejs }}');
+        subjectPercentages.push({{ stat.percentage }});
+
+        // Rangni foizga qarab belgilash
+        if ({{ stat.percentage }} >= 90) {
+            backgroundColors.push('#2ecc71');
+        } else if ({{ stat.percentage }} >= 70) {
+            backgroundColors.push('#f39c12');
+        } else {
+            backgroundColors.push('#e74c3c');
+        }
+    {% endfor %}
+
+    // Eski chartni yo'q qilish
+    if (subjectChart) {
+        subjectChart.destroy();
+    }
+
+    // Yangi chart yaratish
+    subjectChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: subjectNames,
+            datasets: [{
+                label: 'Davomat foizi (%)',
+                data: subjectPercentages,
+                backgroundColor: backgroundColors,
+                borderColor: backgroundColors.map(color => color.replace('0.8', '1')),
+                borderWidth: 1,
+                borderRadius: 5,
+                maxBarThickness: 50
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'Foiz (%)'
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Fanlar'
+                    },
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Davomat: ${context.parsed.y}%`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Sinflar chartini yaratish
+function createClassChart() {
+    const ctx = document.getElementById('classChart').getContext('2d');
+
+    // AJAX orqali sinflar statistikasini yuklash
+    fetch('/statistics/class-stats/?period={{ period }}&class_filter={{ class_filter|default:"" }}')
+        .then(response => response.json())
+        .then(data => {
+            // Eski chartni yo'q qilish
+            if (classChart) {
+                classChart.destroy();
+            }
+
+            // Yangi chart yaratish
+            classChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        data: data.data,
+                        backgroundColor: [
+                            '#3498db', '#2ecc71', '#9b59b6', '#f39c12',
+                            '#e74c3c', '#1abc9c', '#d35400', '#34495e',
+                            '#7f8c8d', '#27ae60'
+                        ],
+                        borderWidth: 1,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = Math.round((value / total) * 100);
+                                    return `${label}: ${value}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error loading class stats:', error);
+            document.getElementById('classChart').parentElement.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Sinflar statistikasi yuklanmadi
+                </div>
+            `;
+        });
+}
+
+// Tendensiya chartini yaratish
+function createTrendChart() {
+    const ctx = document.getElementById('trendChart').getContext('2d');
+    const months = getLastMonths(6); // Oxirgi 6 oy
+
+    // AJAX orqali tendensiya ma'lumotlarini yuklash
+    fetch(`/statistics/trend-data/?months=${document.getElementById('trendPeriod').value}&class_filter={{ class_filter|default:"" }}`)
+        .then(response => response.json())
+        .then(data => {
+            // Eski chartni yo'q qilish
+            if (trendChart) {
+                trendChart.destroy();
+            }
+
+            // Yangi chart yaratish
+            trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Davomat tendensiyasi',
+                        data: data.data,
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#3498db',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6,
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Davomat foizi (%)'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Oylar'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return `Davomat: ${context.parsed.y}%`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error loading trend data:', error);
+            document.getElementById('trendChart').parentElement.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Tendensiya ma'lumotlari yuklanmadi
+                </div>
+            `;
+        });
+}
+
+// Oxirgi N oyni olish
+function getLastMonths(n) {
+    const months = [];
+    const now = new Date();
+    for (let i = n - 1; i >= 0; i--) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push(date.toLocaleString('default', { month: 'short' }));
+    }
+    return months;
+}
+
+// Eng yaxshi o'quvchilarni yuklash
+function loadTopStudents() {
+    fetch('/statistics/top-students/?period={{ period }}&class_filter={{ class_filter|default:"" }}')
+        .then(response => response.json())
+        .then(data => {
+            let html = '';
+            data.forEach((student, index) => {
+                const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🏅';
+                html += `
+                    <div class="top-student-item">
+                        <div class="student-rank">${medal}</div>
+                        <div class="student-info">
+                            <h6>${student.name}</h6>
+                            <p>${student.class_name} • ${student.attendance_percentage}%</p>
+                        </div>
+                        <div class="student-stats">
+                            <span class="badge bg-success">${student.present_count} bor</span>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('topStudentsList').innerHTML = html || `
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    Ma'lumotlar mavjud emas
+                </div>
+            `;
+        })
+        .catch(error => {
+            console.error('Error loading top students:', error);
+            document.getElementById('topStudentsList').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Ma'lumotlar yuklanmadi
+                </div>
+            `;
+        });
+}
+
+// Past davomatli o'quvchilarni yuklash
+function loadLowAttendance() {
+    fetch('/statistics/low-attendance/?period={{ period }}&class_filter={{ class_filter|default:"" }}')
+        .then(response => response.json())
+        .then(data => {
+            let html = '';
+            data.forEach(student => {
+                html += `
+                    <div class="low-attendance-item">
+                        <div class="student-warning">
+                            <i class="fas fa-exclamation-triangle text-warning"></i>
+                        </div>
+                        <div class="student-info">
+                            <h6>${student.name}</h6>
+                            <p>${student.class_name} • Faqat ${student.attendance_percentage}%</p>
+                        </div>
+                        <div class="student-stats">
+                            <span class="badge bg-danger">${student.absent_count} yo'q</span>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('lowAttendanceList').innerHTML = html || `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    Barcha o'quvchilar yaxshi darajada
+                </div>
+            `;
+        })
+        .catch(error => {
+            console.error('Error loading low attendance:', error);
+            document.getElementById('lowAttendanceList').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Ma'lumotlar yuklanmadi
+                </div>
+            `;
+        });
+}
+
+// Sinflar statistikasini yangilash
+function loadClassStats() {
+    createClassChart();
+}
+
+// Tendensiya ma'lumotlarini yangilash
+function loadTrendData() {
+    createTrendChart();
+}
+
+// Statistikani chop etish
+function printStatistics() {
+    window.print();
+}
+
+// Sahifa yuklanganda
+document.addEventListener('DOMContentLoaded', function() {
+    // Chartlarni yaratish
+    createSubjectChart();
+    createClassChart();
+    createTrendChart();
+
+    // Qo'shimcha ma'lumotlarni yuklash
+    loadTopStudents();
+    loadLowAttendance();
+
+    // Yangilangan vaqtni yangilash
+    setInterval(() => {
+        document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString('uz-UZ', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }, 60000); // Har 1 daqiqada
+
+    // Fanlar ro'yxatini yuklash (agar kerak bo'lsa)
+    fetch('/statistics/subjects/')
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById('subject');
+            data.forEach(subject => {
+                const option = document.createElement('option');
+                option.value = subject.id;
+                option.textContent = subject.name;
+                select.appendChild(option);
+            });
+        });
+});
+</script>
+
+<style>
+/* Custom styles for statistics.html */
+.section-title {
+    font-size: 1.2rem;
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.filter-section {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.stat-card {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    height: 100%;
+}
+
+.stat-card.primary {
+    border-left: 5px solid #3498db;
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+}
+
+.stat-info h2 {
+    margin: 0;
+    font-size: 36px;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.stat-info p {
+    margin: 5px 0 0 0;
+    color: #7f8c8d;
+    font-size: 14px;
+}
+
+.stat-trend {
+    margin-left: auto;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.trend-up {
+    color: #2ecc71;
+}
+
+.trend-neutral {
+    color: #f39c12;
+}
+
+.trend-down {
+    color: #e74c3c;
+}
+
+.chart-container {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 20px;
+    height: 100%;
+}
+
+.overall-progress {
+    height: 25px;
+    border-radius: 12px;
+}
+
+.overall-progress .progress-bar {
+    background: linear-gradient(90deg, #e74c3c, #f39c12, #2ecc71);
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.progress-labels {
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+.subject-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.subject-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+}
+
+.percentage-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.percentage-value {
+    font-weight: 600;
+    color: #2c3e50;
+    min-width: 45px;
+}
+
+.mini-progress {
+    flex: 1;
+    height: 8px;
+    border-radius: 4px;
+}
+
+.stats-card {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    height: 100%;
+}
+
+.stats-card .card-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 10px 10px 0 0;
+}
+
+.stats-card .card-header h5 {
+    margin: 0;
+    font-size: 16px;
+    color: #2c3e50;
+}
+
+.stats-card .card-body {
+    padding: 20px;
+}
+
+.top-students, .low-attendance {
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.top-student-item, .low-attendance-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 12px;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.3s ease;
+}
+
+.top-student-item:hover, .low-attendance-item:hover {
+    background: #f8f9fa;
+}
+
+.top-student-item:last-child, .low-attendance-item:last-child {
+    border-bottom: none;
+}
+
+.student-rank {
+    font-size: 24px;
+    width: 40px;
+    text-align: center;
+}
+
+.student-warning {
+    width: 40px;
+    text-align: center;
+    font-size: 20px;
+}
+
+.student-info {
+    flex: 1;
+}
+
+.student-info h6 {
+    margin: 0;
+    font-size: 14px;
+    color: #2c3e50;
+}
+
+.student-info p {
+    margin: 3px 0 0 0;
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+.student-stats .badge {
+    font-size: 11px;
+    padding: 4px 8px;
+}
+
+.info-box {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    height: 100%;
+    transition: transform 0.3s ease;
+}
+
+.info-box:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.info-icon {
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+}
+
+.info-content h5 {
+    margin: 0;
+    font-size: 14px;
+    color: #7f8c8d;
+    font-weight: 600;
+}
+
+.info-content p {
+    margin: 5px 0 0 0;
+    font-size: 16px;
+    color: #2c3e50;
+    font-weight: 700;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 20px;
+}
+
+.empty-state i {
+    color: #bdc3c7;
+}
+
+.empty-state h4 {
+    color: #7f8c8d;
+    margin: 15px 0 10px 0;
+    font-size: 16px;
+}
+
+.empty-state p {
+    color: #95a5a6;
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Scrollbar styling */
+.top-students::-webkit-scrollbar,
+.low-attendance::-webkit-scrollbar {
+    width: 6px;
+}
+
+.top-students::-webkit-scrollbar-track,
+.low-attendance::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.top-students::-webkit-scrollbar-thumb,
+.low-attendance::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.top-students::-webkit-scrollbar-thumb:hover,
+.low-attendance::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Print styles */
+@media print {
+    .card-header-actions,
+    .filter-section,
+    .btn {
+        display: none !important;
+    }
+
+    .stat-card,
+    .chart-container,
+    .stats-card,
+    .info-box {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .stat-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+    }
+
+    .stat-trend {
+        margin-left: 0;
+    }
+
+    .percentage-cell {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+
+    .mini-progress {
+        width: 100%;
+    }
+
+    .chart-container {
+        padding: 15px;
+    }
+}
+</style>
+{% endblock %}

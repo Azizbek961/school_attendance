@@ -1,0 +1,85 @@
+<!-- attendance/templates/attendance/teacher_select_subject.html -->
+{% extends 'attendance/base.html' %}
+
+{% block title %}Fanni tanlang - SAMO School{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-book me-2"></i>Fanni tanlang
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <h4 class="mb-4">{{ class_obj.name }} sinfi uchun fanni tanlang</h4>
+
+                    {% if subjects %}
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="row">
+                            {% for subject in subjects %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card subject-card h-100">
+                                    <div class="card-body text-center">
+                                        <div class="subject-icon mb-3">
+                                            <i class="fas fa-book-open fa-3x text-primary"></i>
+                                        </div>
+                                        <h5>{{ subject.name }}</h5>
+                                        <p class="text-muted mb-2">
+                                            {{ subject.lessons_per_week }} soat/hafta
+                                        </p>
+                                        {% if subject.schedule %}
+                                        <p class="text-muted small">
+                                            <i class="fas fa-clock me-1"></i>{{ subject.schedule }}
+                                        </p>
+                                        {% endif %}
+                                        <button type="submit" name="subject_id" value="{{ subject.id }}"
+                                                class="btn btn-primary mt-3">
+                                            <i class="fas fa-clipboard-check me-1"></i>Davomat olish
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                        <h5>Fanlar topilmadi</h5>
+                        <p class="text-muted">Bu sinfda sizning fanlaringiz yo'q</p>
+                        <a href="{% url 'teacher_my_classes' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>Orqaga
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <a href="{% url 'teacher_my_classes' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Sinflar ro'yxatiga qaytish
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.subject-card {
+    transition: transform 0.2s;
+    border: 1px solid #dee2e6;
+}
+
+.subject-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.subject-icon {
+    color: #667eea;
+}
+</style>
+{% endblock %}

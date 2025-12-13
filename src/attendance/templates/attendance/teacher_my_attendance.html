@@ -1,0 +1,366 @@
+<!-- attendance/templates/attendance/teacher_today_attendance.html -->
+{% extends 'attendance/base.html' %}
+
+{% block title %}Bugungi Davomat - SAMO School{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="page-header">
+                <h1 class="h2 mb-2">
+                    <i class="fas fa-calendar-day me-2"></i>Bugungi Davomat
+                </h1>
+                <p class="text-muted">{{ today|date:"d F Y, l" }} sanasi uchun davomat yozuvlari</p>
+            </div>
+        </div>
+        <div class="col-auto">
+            <div class="d-flex gap-2">
+                <a href="{% url 'teacher_my_attendance' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Barcha davomatlar
+                </a>
+                <a href="{% url 'teacher_my_classes' %}" class="btn btn-primary">
+                    <i class="fas fa-clipboard-check me-1"></i>Yangi davomat olish
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Today's Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card border-primary">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-primary">
+                            <i class="fas fa-clipboard-list"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h3 class="stat-value">{{ total_count }}</h3>
+                            <p class="stat-label text-muted mb-0">Jami yozuvlar</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card border-success">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-success">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h3 class="stat-value">{{ present_count }}</h3>
+                            <p class="stat-label text-muted mb-0">Qatnashgan</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card border-danger">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-danger">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h3 class="stat-value">{{ absent_count }}</h3>
+                            <p class="stat-label text-muted mb-0">Qatnashmagan</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card border-warning">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-warning">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h3 class="stat-value">{{ late_count }}</h3>
+                            <p class="stat-label text-muted mb-0">Kech qolgan</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Classes Today -->
+    {% if classes_today %}
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-school me-2"></i>Bugun dars bergan sinflar
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for class in classes_today %}
+                        <div class="col-md-4 mb-3">
+                            <div class="class-card">
+                                <div class="class-header">
+                                    <h6>{{ class.name }}</h6>
+                                    {% if class.room %}
+                                    <span class="badge bg-secondary">{{ class.room }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="class-stats">
+                                    <div class="stat">
+                                        <span class="stat-label">Qatnashgan:</span>
+                                        <span class="stat-value text-success">{{ class.present_count|default:0 }}</span>
+                                    </div>
+                                    <div class="stat">
+                                        <span class="stat-label">Jami:</span>
+                                        <span class="stat-value">{{ class.total_count|default:0 }}</span>
+                                    </div>
+                                    <div class="stat">
+                                        <span class="stat-label">Foiz:</span>
+                                        <span class="stat-value">
+                                            {% with percentage=class.present_count|default:0|floatformat:0 %}
+                                            {{ percentage }}%
+                                            {% endwith %}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="class-actions">
+                                    <a href="{% url 'teacher_view_class_attendance' class.id %}?date={{ today|date:'Y-m-d' }}"
+                                       class="btn btn-sm btn-outline-primary">
+                                        Batafsil
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Today's Attendance Records -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-list-alt me-2"></i>Bugungi davomat yozuvlari
+                {% if total_count > 0 %}
+                <span class="badge bg-primary ms-2">{{ total_count }}</span>
+                {% endif %}
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if attendance_records %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>O'quvchi</th>
+                            <th>Sinf</th>
+                            <th>Fan</th>
+                            <th>Holat</th>
+                            <th>Izoh</th>
+                            <th>Vaqt</th>
+                            <th>Harakatlar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in attendance_records %}
+                        <tr class="{% if record.status == 'present' %}table-success{% elif record.status == 'absent' %}table-danger{% elif record.status == 'late' %}table-warning{% else %}table-info{% endif %}">
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="student-avatar me-2">
+                                        {{ record.student.first_name|first|upper }}{{ record.student.last_name|first|upper }}
+                                    </div>
+                                    <div>
+                                        <strong>{{ record.student.get_full_name }}</strong>
+                                        <br>
+                                        <small class="text-muted">@{{ record.student.username }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary">{{ record.class_obj.name }}</span>
+                            </td>
+                            <td>{{ record.subject.name }}</td>
+                            <td>
+                                {% if record.status == 'present' %}
+                                <span class="badge bg-success">✅ Qatnashdi</span>
+                                {% elif record.status == 'absent' %}
+                                <span class="badge bg-danger">❌ Qatnashmadi</span>
+                                {% elif record.status == 'late' %}
+                                <span class="badge bg-warning">⏰ Kech qoldi</span>
+                                {% else %}
+                                <span class="badge bg-info">📝 Sababli</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if record.notes %}
+                                <div class="notes-preview" data-bs-toggle="tooltip" title="{{ record.notes }}">
+                                    {{ record.notes|truncatechars:30 }}
+                                </div>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>{{ record.created_at|time:"H:i" }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-primary"
+                                            onclick="viewAttendanceDetails({{ record.id }})"
+                                            title="Ma'lumotlarni ko'rish">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <a href="{% url 'teacher_edit_attendance' record.id %}"
+                                       class="btn btn-outline-warning" title="Tahrirlash">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <div class="empty-state">
+                    <i class="fas fa-calendar-times fa-4x text-muted mb-3"></i>
+                    <h5>Bugun davomat yozuvlari yo'q</h5>
+                    <p class="text-muted">Siz bugun hali davomat olmagansiz</p>
+                    <a href="{% url 'teacher_my_classes' %}" class="btn btn-primary">
+                        <i class="fas fa-clipboard-check me-1"></i>Davomat olish
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.stat-card {
+    transition: transform 0.2s;
+    border-left: 4px solid transparent;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0;
+    color: #2c3e50;
+}
+
+.stat-label {
+    font-size: 14px;
+}
+
+.class-card {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 15px;
+    border: 1px solid #dee2e6;
+}
+
+.class-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.class-header h6 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.class-stats {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.stat {
+    text-align: center;
+}
+
+.stat-label {
+    display: block;
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.stat-value {
+    display: block;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.class-actions {
+    text-align: center;
+}
+
+.student-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.notes-preview {
+    cursor: help;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.empty-state {
+    color: #6c757d;
+}
+
+.empty-state i {
+    opacity: 0.5;
+}
+</style>
+
+{% block extra_js %}
+<script>
+function viewAttendanceDetails(attendanceId) {
+    // This function should be implemented similarly to the one in teacher_my_attendance.html
+    // For now, redirect to details page
+    window.location.href = `/teacher/edit-attendance/${attendanceId}/`;
+}
+</script>
+{% endblock %}
+{% endblock %}

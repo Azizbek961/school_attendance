@@ -1,0 +1,668 @@
+{% extends 'attendance/base_admin.html' %}
+
+{% block title %}Sinflarni Boshqarish - SAMO School{% endblock %}
+{% block page_title %}Sinflarni Boshqarish{% endblock %}
+{% block page_subtitle %}Barcha sinflarni ko'rish va boshqarish{% endblock %}
+
+{% block content %}
+<div class="dashboard-card">
+    <div class="card-header">
+        <h3>Barcha Sinflar</h3>
+        <a href="{% url 'add_class' %}" class="btn btn-primary">
+            <i class="fas fa-plus-circle"></i> Yangi sinf
+        </a>
+    </div>
+
+    <div class="card-body">
+        <!-- Search and Stats -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="classSearch" placeholder="Sinf qidirish..." onkeyup="searchClasses()">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card bg-primary">
+                    <i class="fas fa-school"></i>
+                    <div>
+                        <h4>{{ classes|length }}</h4>
+                        <p>Jami sinflar</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Classes Table -->
+        <div class="table-responsive">
+            <table class="data-table" id="classesTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Sinf Nomi</th>
+                        <th>Sinf Rahbari</th>
+                        <th>Xona</th>
+                        <th>O'quvchilar Soni</th>
+                        <th>Bugungi Davomat</th>
+                        <th>Dars Jadvali</th>
+                        <th>Yaratilgan</th>
+                        <th>Amallar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for class in classes %}
+                    <tr>
+                        <td>{{ class.id }}</td>
+                        <td>
+                            <div class="class-cell">
+                                <div class="class-icon">
+                                    <i class="fas fa-chalkboard-teacher"></i>
+                                </div>
+                                <div class="class-info">
+                                    <h4>{{ class.name }}</h4>
+                                    {% if class.schedule %}
+                                    <p><i class="far fa-clock"></i> {{ class.schedule|truncatechars:30 }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if class.teacher %}
+                            <div class="teacher-cell">
+                                <div class="user-avatar teacher">
+                                    {{ class.teacher.first_name|first|upper }}
+                                </div>
+                                <div class="teacher-info">
+                                    <strong>{{ class.teacher.get_full_name }}</strong>
+                                    <small>{{ class.teacher.email|default:"Email yo'q" }}</small>
+                                </div>
+                            </div>
+                            {% else %}
+                            <span class="text-muted">Tayinlanmagan</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if class.room %}
+                            <span class="room-badge">{{ class.room }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="student-count">
+                                <i class="fas fa-users"></i>
+                                <span class="count">{{ class.student_count|default:0 }}</span>
+                                <span class="label">o'quvchi</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="attendance-widget">
+                                {% if class.attendance_rate >= 80 %}
+                                <div class="progress high">
+                                    <div class="progress-bar" style="width: {{ class.attendance_rate }}%"></div>
+                                </div>
+                                <span class="percentage text-success">{{ class.attendance_rate }}%</span>
+                                {% elif class.attendance_rate >= 60 %}
+                                <div class="progress medium">
+                                    <div class="progress-bar" style="width: {{ class.attendance_rate }}%"></div>
+                                </div>
+                                <span class="percentage text-warning">{{ class.attendance_rate }}%</span>
+                                {% else %}
+                                <div class="progress low">
+                                    <div class="progress-bar" style="width: {{ class.attendance_rate }}%"></div>
+                                </div>
+                                <span class="percentage text-danger">{{ class.attendance_rate }}%</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% if class.schedule %}
+                            <span class="schedule-info" title="{{ class.schedule }}">
+                                {{ class.schedule|truncatechars:20 }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted">Jadval yo'q</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="date-info">
+                                <div>{{ class.created_at|date:"d.m.Y" }}</div>
+                                <small>{{ class.created_at|date:"H:i" }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{% url 'edit_class' class.id %}" class="action-btn-small edit-btn">
+                                    <i class="fas fa-edit"></i> Tahrirlash
+                                </a>
+                                <a href="{% url 'delete_class' class.id %}" class="action-btn-small delete-btn"
+                                   onclick="return confirm('{{ class.name }} sinfini oʻchirishni tasdiqlaysizmi? Bu bilan sinfga tegishli barcha davomat maʼlumotlari ham oʻchiriladi.')">
+                                    <i class="fas fa-trash"></i> O'chirish
+                                </a>
+                                <button class="action-btn-small view-btn" onclick="viewClassDetails({{ class.id }})">
+                                    <i class="fas fa-eye"></i> Ko'rish
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center">
+                            <div class="empty-state">
+                                <i class="fas fa-school fa-3x"></i>
+                                <h4>Hech qanday sinf topilmadi</h4>
+                                <p>Hozircha sinflar mavjud emas. Birinchi sinfni qo'shing.</p>
+                                <a href="{% url 'add_class' %}" class="btn btn-primary">
+                                    <i class="fas fa-plus"></i> Yangi sinf qo'shish
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Class Details Modal -->
+        <div class="modal fade" id="classDetailsModal" tabindex="-1" aria-labelledby="classDetailsModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="classDetailsModalLabel">Sinf Ma'lumotlari</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="classDetailsContent">
+                        <!-- Dynamic content will be loaded here -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Yopish</button>
+                        <button type="button" class="btn btn-primary" id="editClassBtn">Tahrirlash</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Search functionality
+function searchClasses() {
+    const input = document.getElementById('classSearch');
+    const filter = input.value.toLowerCase();
+    const table = document.getElementById('classesTable');
+    const rows = table.getElementsByTagName('tr');
+
+    for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const cells = row.getElementsByTagName('td');
+        let found = false;
+
+        for (let j = 0; j < cells.length; j++) {
+            if (cells[j]) {
+                const text = cells[j].textContent || cells[j].innerText;
+                if (text.toLowerCase().indexOf(filter) > -1) {
+                    found = true;
+                    break;
+                }
+            }
+        }
+
+        if (found) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    }
+}
+
+// View class details
+function viewClassDetails(classId) {
+    // Load class details via AJAX
+    fetch(`/classes/${classId}/details/`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Populate modal content
+            const modalContent = document.getElementById('classDetailsContent');
+            modalContent.innerHTML = `
+                <div class="class-details">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h4>Sinf ma'lumotlari</h4>
+                            <table class="details-table">
+                                <tr>
+                                    <th>Sinf nomi:</th>
+                                    <td>${data.name}</td>
+                                </tr>
+                                <tr>
+                                    <th>Sinf rahbari:</th>
+                                    <td>${data.teacher_name || 'Tayinlanmagan'}</td>
+                                </tr>
+                                <tr>
+                                    <th>Xona raqami:</th>
+                                    <td>${data.room || 'Koʻrsatilmagan'}</td>
+                                </tr>
+                                <tr>
+                                    <th>O'quvchilar soni:</th>
+                                    <td>${data.student_count} ta</td>
+                                </tr>
+                                <tr>
+                                    <th>Yaratilgan sana:</th>
+                                    <td>${data.created_at}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h4>Fanlar</h4>
+                            ${data.subjects && data.subjects.length > 0 ?
+                                `<ul class="subject-list">
+                                    ${data.subjects.map(subject => `
+                                        <li>
+                                            <i class="fas fa-book"></i>
+                                            <span>${subject.name}</span>
+                                            <small>${subject.teacher_name || 'Tayinlanmagan'}</small>
+                                        </li>
+                                    `).join('')}
+                                </ul>` :
+                                '<p class="text-muted">Sinfga hali fanlar qoʻshilmagan</p>'
+                            }
+                        </div>
+                    </div>
+                    ${data.schedule ? `
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <h4>Dars jadvali</h4>
+                            <div class="schedule-box">
+                                <i class="far fa-clock"></i>
+                                <span>${data.schedule}</span>
+                            </div>
+                        </div>
+                    </div>` : ''}
+                </div>
+            `;
+
+            // Set edit button href
+            document.getElementById('editClassBtn').onclick = function() {
+                window.location.href = `/classes/edit/${classId}/`;
+            };
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('classDetailsModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Sinf maʼlumotlarini yuklashda xatolik yuz berdi');
+        });
+}
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Initialize schedule tooltips
+    const scheduleElements = document.querySelectorAll('.schedule-info');
+    scheduleElements.forEach(element => {
+        element.setAttribute('data-bs-toggle', 'tooltip');
+        element.setAttribute('title', element.getAttribute('title'));
+        new bootstrap.Tooltip(element);
+    });
+});
+</script>
+
+<style>
+/* Custom styles for manage_classes.html */
+.class-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.class-icon {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 18px;
+}
+
+.class-info h4 {
+    margin: 0;
+    font-size: 16px;
+    color: #2c3e50;
+}
+
+.class-info p {
+    margin: 2px 0 0 0;
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+.teacher-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.teacher-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.teacher-info strong {
+    font-size: 14px;
+    color: #2c3e50;
+}
+
+.teacher-info small {
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+.room-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background: #e8f4fd;
+    color: #3498db;
+    border-radius: 20px;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.student-count {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.student-count i {
+    color: #9b59b6;
+    font-size: 16px;
+}
+
+.student-count .count {
+    font-weight: 600;
+    font-size: 16px;
+    color: #2c3e50;
+}
+
+.student-count .label {
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+.attendance-widget {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.attendance-widget .progress {
+    flex: 1;
+    height: 8px;
+    border-radius: 4px;
+    background: #ecf0f1;
+    overflow: hidden;
+}
+
+.attendance-widget .progress.high .progress-bar {
+    background: #2ecc71;
+}
+
+.attendance-widget .progress.medium .progress-bar {
+    background: #f39c12;
+}
+
+.attendance-widget .progress.low .progress-bar {
+    background: #e74c3c;
+}
+
+.attendance-widget .progress-bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.attendance-widget .percentage {
+    font-weight: 600;
+    font-size: 14px;
+    min-width: 45px;
+    text-align: right;
+}
+
+.schedule-info {
+    display: inline-block;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: help;
+}
+
+.date-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.date-info div {
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+.date-info small {
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.empty-state i {
+    color: #bdc3c7;
+    margin-bottom: 20px;
+}
+
+.empty-state h4 {
+    color: #7f8c8d;
+    margin-bottom: 10px;
+}
+
+.empty-state p {
+    color: #95a5a6;
+    margin-bottom: 20px;
+}
+
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 120px;
+}
+
+.action-btn-small {
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+}
+
+.action-btn-small.edit-btn {
+    background: #e8f4fd;
+    color: #3498db;
+    border: 1px solid #3498db;
+}
+
+.action-btn-small.delete-btn {
+    background: #fde8e8;
+    color: #e74c3c;
+    border: 1px solid #e74c3c;
+}
+
+.action-btn-small.view-btn {
+    background: #f0f9ff;
+    color: #9b59b6;
+    border: 1px solid #9b59b6;
+}
+
+.action-btn-small:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.action-btn-small.edit-btn:hover {
+    background: #3498db;
+    color: white;
+}
+
+.action-btn-small.delete-btn:hover {
+    background: #e74c3c;
+    color: white;
+}
+
+.action-btn-small.view-btn:hover {
+    background: #9b59b6;
+    color: white;
+}
+
+/* Modal styles */
+.class-details {
+    padding: 10px;
+}
+
+.details-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.details-table tr {
+    border-bottom: 1px solid #eee;
+}
+
+.details-table th {
+    text-align: left;
+    padding: 8px 12px 8px 0;
+    font-weight: 600;
+    color: #2c3e50;
+    width: 40%;
+}
+
+.details-table td {
+    padding: 8px 0;
+    color: #34495e;
+}
+
+.subject-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.subject-list li {
+    padding: 10px 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.subject-list li i {
+    color: #9b59b6;
+    margin-right: 8px;
+}
+
+.subject-list li span {
+    flex: 1;
+    font-weight: 500;
+}
+
+.subject-list li small {
+    color: #7f8c8d;
+    font-size: 12px;
+}
+
+.schedule-box {
+    padding: 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.schedule-box i {
+    font-size: 20px;
+}
+
+/* Stat card */
+.stat-card {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    border-radius: 8px;
+    color: white;
+}
+
+.stat-card i {
+    font-size: 24px;
+    opacity: 0.9;
+}
+
+.stat-card h4 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.stat-card p {
+    margin: 0;
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .action-buttons {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .action-btn-small {
+        padding: 3px 6px;
+        font-size: 11px;
+    }
+
+    .class-cell, .teacher-cell {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .teacher-info {
+        margin-left: 0;
+    }
+}
+</style>
+{% endblock %}

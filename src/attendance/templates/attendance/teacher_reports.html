@@ -1,0 +1,1213 @@
+<!-- attendance/templates/attendance/teacher_reports.html -->
+{% extends 'attendance/base.html' %}
+{% load static %}
+
+{% block title %}Hisobotlar - SAMO School{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="page-header">
+                <h1 class="h2 mb-2">
+                    <i class="fas fa-chart-bar me-2"></i>Hisobotlar
+                </h1>
+                <p class="text-muted">Davomat statistikasi va hisobotlarni tahlil qilish</p>
+            </div>
+        </div>
+        <div class="col-auto">
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary" onclick="refreshCharts()">
+                    <i class="fas fa-sync-alt"></i> Yangilash
+                </button>
+                <button class="btn btn-success" onclick="showGenerateReportModal()">
+                    <i class="fas fa-file-alt me-1"></i>Hisobot yaratish
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card border-primary">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-primary">
+                            <i class="fas fa-clipboard-check"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h3 class="stat-value">{{ attendance_stats.percentage }}%</h3>
+                            <p class="stat-label text-muted mb-0">Umumiy davomat</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card border-success">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-success">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h3 class="stat-value">{{ student_stats|length }}</h3>
+                            <p class="stat-label text-muted mb-0">O'quvchilar</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card border-warning">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-warning">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h3 class="stat-value">{{ subjects|length }}</h3>
+                            <p class="stat-label text-muted mb-0">Fanlar</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card border-info">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-info">
+                            <i class="fas fa-school"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h3 class="stat-value">{{ classes|length }}</h3>
+                            <p class="stat-label text-muted mb-0">Sinflar</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Davomat trendi (oxirgi 30 kun)
+                    </h5>
+                    <div class="chart-controls">
+                        <select class="form-select form-select-sm" id="trendPeriod" onchange="updateTrendChart()">
+                            <option value="7">1 hafta</option>
+                            <option value="30" selected>1 oy</option>
+                            <option value="90">3 oy</option>
+                            <option value="180">6 oy</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="trendChart" style="height: 300px;">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Yuklanmoqda...</span>
+                            </div>
+                            <p class="mt-2">Grafik yuklanmoqda...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Holatlar bo'yicha taqsimot
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="statusChart" style="height: 300px;">
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Yuklanmoqda...</span>
+                            </div>
+                            <p class="mt-2">Grafik yuklanmoqda...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Statistics -->
+    <div class="row">
+        <!-- Top Students -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-trophy me-2"></i>Eng yaxshi o'quvchilar
+                    </h5>
+                    <a href="#" class="btn btn-sm btn-outline-primary" onclick="viewAllStudents()">
+                        Barchasi
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if student_stats %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>O'quvchi</th>
+                                    <th>Sinf</th>
+                                    <th>Davomat</th>
+                                    <th>Foiz</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in student_stats|slice:":5" %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>
+                                        <strong>{{ student.name }}</strong>
+                                    </td>
+                                    <td>{{ student.class_name }}</td>
+                                    <td>{{ student.present }}/{{ student.total }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress flex-grow-1 me-2" style="height: 6px;">
+                                                <div class="progress-bar {% if student.percentage >= 90 %}bg-success{% elif student.percentage >= 70 %}bg-warning{% else %}bg-danger{% endif %}"
+                                                     style="width: {{ student.percentage }}%">
+                                                </div>
+                                            </div>
+                                            <span>{{ student.percentage }}%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Ma'lumotlar yo'q</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Subject Performance -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-book me-2"></i>Fanlar bo'yicha statistikasi
+                    </h5>
+                    <a href="#" class="btn btn-sm btn-outline-primary" onclick="viewAllSubjects()">
+                        Barchasi
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if subject_stats %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Fan</th>
+                                    <th>Sinflar</th>
+                                    <th>Davomat</th>
+                                    <th>Foiz</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for subject in subject_stats|slice:":5" %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ subject.name }}</strong>
+                                    </td>
+                                    <td>{{ subject.classes_count }}</td>
+                                    <td>{{ subject.present }}/{{ subject.total }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress flex-grow-1 me-2" style="height: 6px;">
+                                                <div class="progress-bar {% if subject.percentage >= 90 %}bg-success{% elif subject.percentage >= 70 %}bg-warning{% else %}bg-danger{% endif %}"
+                                                     style="width: {{ subject.percentage }}%">
+                                                </div>
+                                            </div>
+                                            <span>{{ subject.percentage }}%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-book fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Ma'lumotlar yo'q</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Reports -->
+    <div class="row mt-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bolt me-2"></i>Tezkor hisobotlar
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="quick-report-card" onclick="generateQuickReport('daily')">
+                                <div class="report-icon bg-primary">
+                                    <i class="fas fa-calendar-day"></i>
+                                </div>
+                                <div class="report-info">
+                                    <h6>Kunlik hisobot</h6>
+                                    <p class="text-muted mb-0">Bugungi davomat</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="quick-report-card" onclick="generateQuickReport('weekly')">
+                                <div class="report-icon bg-success">
+                                    <i class="fas fa-calendar-week"></i>
+                                </div>
+                                <div class="report-info">
+                                    <h6>Haftalik hisobot</h6>
+                                    <p class="text-muted mb-0">Oxirgi 7 kun</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="quick-report-card" onclick="generateQuickReport('monthly')">
+                                <div class="report-icon bg-warning">
+                                    <i class="fas fa-calendar-alt"></i>
+                                </div>
+                                <div class="report-info">
+                                    <h6>Oylik hisobot</h6>
+                                    <p class="text-muted mb-0">Oxirgi 30 kun</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="quick-report-card" onclick="generateQuickReport('student')">
+                                <div class="report-icon bg-info">
+                                    <i class="fas fa-user-graduate"></i>
+                                </div>
+                                <div class="report-info">
+                                    <h6>O'quvchi hisoboti</h6>
+                                    <p class="text-muted mb-0">Barcha o'quvchilar</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generate Report Modal -->
+<div class="modal fade" id="generateReportModal" tabindex="-1" aria-labelledby="generateReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="generateReportModalLabel">
+                    <i class="fas fa-file-alt me-2"></i>Hisobot yaratish
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="reportForm" onsubmit="return generateReport(event)">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="reportType" class="form-label">Hisobot turi</label>
+                                <select class="form-select" id="reportType" required>
+                                    <option value="summary">Umumiy hisobot</option>
+                                    <option value="detailed">Batafsil hisobot</option>
+                                    <option value="student">O'quvchi hisoboti</option>
+                                    <option value="subject">Fan hisoboti</option>
+                                    <option value="daily">Kunlik hisobot</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="startDate" class="form-label">Boshlanish sanasi</label>
+                                <input type="date" class="form-control" id="startDate"
+                                       value="{{ start_date|date:'Y-m-d' }}" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="endDate" class="form-label">Tugash sanasi</label>
+                                <input type="date" class="form-control" id="endDate"
+                                       value="{{ end_date|date:'Y-m-d' }}" required>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="classFilter" class="form-label">Sinf (ixtiyoriy)</label>
+                                <select class="form-select" id="classFilter">
+                                    <option value="all">Barcha sinflar</option>
+                                    {% for class in classes %}
+                                    <option value="{{ class.id }}">{{ class.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="subjectFilter" class="form-label">Fan (ixtiyoriy)</label>
+                                <select class="form-select" id="subjectFilter">
+                                    <option value="all">Barcha fanlar</option>
+                                    {% for subject in subjects %}
+                                    <option value="{{ subject.id }}">{{ subject.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="groupBy" class="form-label">Guruhlash</label>
+                                <select class="form-select" id="groupBy">
+                                    <option value="day">Kun bo'yicha</option>
+                                    <option value="subject">Fan bo'yicha</option>
+                                    <option value="class">Sinf bo'yicha</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="previewReport">
+                            <label class="form-check-label" for="previewReport">
+                                Hisobotni avval ko'rib chiqish
+                            </label>
+                        </div>
+                    </div>
+                </form>
+
+                <div id="reportPreview" class="mt-3" style="display: none;">
+                    <div class="alert alert-info">
+                        <i class="fas fa-spinner fa-spin me-2"></i>
+                        Hisobot tayyorlanmoqda...
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bekor qilish</button>
+                <button type="button" class="btn btn-primary" onclick="generateReport()">
+                    <i class="fas fa-play me-1"></i>Hisobot yaratish
+                </button>
+                <button type="button" class="btn btn-success" id="exportBtn" onclick="exportReport()" style="display: none;">
+                    <i class="fas fa-download me-1"></i>Yuklab olish
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Report Preview Modal -->
+<div class="modal fade" id="reportPreviewModal" tabindex="-1" aria-labelledby="reportPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="reportPreviewModalLabel">
+                    <i class="fas fa-eye me-2"></i>Hisobotni ko'rish
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="reportPreviewContent">
+                <!-- Report content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Yopish</button>
+                <button type="button" class="btn btn-primary" onclick="printReport()">
+                    <i class="fas fa-print me-1"></i>Chop etish
+                </button>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown">
+                        <i class="fas fa-download me-1"></i>Yuklab olish
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="exportReportFormat('pdf')">PDF formatida</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="exportReportFormat('excel')">Excel formatida</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="exportReportFormat('csv')">CSV formatida</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                    <span class="visually-hidden">Yuklanmoqda...</span>
+                </div>
+                <h5 class="mt-3">Hisobot tayyorlanmoqda...</h5>
+                <p class="text-muted">Iltimos, kuting</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-card {
+    transition: transform 0.2s;
+    border-left: 4px solid transparent;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0;
+    color: #2c3e50;
+}
+
+.stat-label {
+    font-size: 14px;
+}
+
+.chart-controls {
+    width: 120px;
+}
+
+.quick-report-card {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    height: 100%;
+    border: 2px solid transparent;
+}
+
+.quick-report-card:hover {
+    background: #e9ecef;
+    border-color: #667eea;
+    transform: translateY(-3px);
+}
+
+.report-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 28px;
+    margin: 0 auto 15px auto;
+}
+
+.report-info h6 {
+    margin-bottom: 5px;
+    color: #2c3e50;
+}
+
+.report-info p {
+    font-size: 13px;
+    margin: 0;
+}
+
+.table th {
+    font-weight: 600;
+    color: #495057;
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.progress {
+    border-radius: 10px;
+}
+
+.progress-bar {
+    border-radius: 10px;
+}
+
+.modal-content {
+    border-radius: 15px;
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px 15px 0 0;
+}
+
+.modal-header .btn-close {
+    filter: brightness(0) invert(1);
+}
+
+#reportPreviewContent {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.report-table th {
+    background-color: #f8f9fa;
+    padding: 12px;
+    text-align: left;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.report-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #eee;
+}
+
+.report-table tr:hover {
+    background-color: #f8f9fa;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+let currentReportData = null;
+let currentReportParams = null;
+
+// Initialize charts on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadTrendChart();
+    loadStatusChart();
+
+    // Set default dates
+    const today = new Date().toISOString().split('T')[0];
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    document.getElementById('startDate').value = thirtyDaysAgo.toISOString().split('T')[0];
+    document.getElementById('endDate').value = today;
+});
+
+function refreshCharts() {
+    loadTrendChart();
+    loadStatusChart();
+}
+
+function loadTrendChart() {
+    const period = document.getElementById('trendPeriod').value;
+
+    fetch(`{% url 'teacher_report_chart_data' %}?type=trend&period=${period}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('trendChart').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        ${data.error}
+                    </div>
+                `;
+                return;
+            }
+
+            const trace = {
+                x: data.weeks,
+                y: data.week_percentages,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Davomat foizi',
+                line: { color: '#667eea', width: 3 },
+                marker: { size: 8 }
+            };
+
+            const layout = {
+                title: 'Davomat trendi',
+                xaxis: { title: 'Haftalar' },
+                yaxis: { title: 'Davomat foizi (%)', range: [0, 100] },
+                height: 280,
+                showlegend: false,
+                margin: { t: 30, r: 30, l: 50, b: 50 }
+            };
+
+            Plotly.newPlot('trendChart', [trace], layout);
+        })
+        .catch(error => {
+            console.error('Error loading trend chart:', error);
+            document.getElementById('trendChart').innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Grafik yuklanmadi
+                </div>
+            `;
+        });
+}
+
+function updateTrendChart() {
+    loadTrendChart();
+}
+
+function loadStatusChart() {
+    fetch(`{% url 'teacher_report_chart_data' %}?type=overall&period=30`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('statusChart').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        ${data.error}
+                    </div>
+                `;
+                return;
+            }
+
+            const labels = ['Qatnashgan', 'Qatnashmagan', 'Kech qolgan', 'Sababli'];
+            const values = [
+                data.status_counts.present,
+                data.status_counts.absent,
+                data.status_counts.late,
+                data.status_counts.excused
+            ];
+            const colors = ['#2ecc71', '#e74c3c', '#f39c12', '#3498db'];
+
+            const trace = {
+                labels: labels,
+                values: values,
+                type: 'pie',
+                marker: { colors: colors },
+                textinfo: 'label+percent',
+                hoverinfo: 'label+value+percent',
+                hole: 0.4
+            };
+
+            const layout = {
+                title: 'Holatlar bo\'yicha taqsimot',
+                height: 280,
+                showlegend: true,
+                margin: { t: 30, r: 30, l: 30, b: 30 }
+            };
+
+            Plotly.newPlot('statusChart', [trace], layout);
+        })
+        .catch(error => {
+            console.error('Error loading status chart:', error);
+            document.getElementById('statusChart').innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Grafik yuklanmadi
+                </div>
+            `;
+        });
+}
+
+function showGenerateReportModal() {
+    const modal = new bootstrap.Modal(document.getElementById('generateReportModal'));
+    modal.show();
+}
+
+function generateReport(event) {
+    if (event) event.preventDefault();
+
+    // Show loading
+    const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+    loadingModal.show();
+
+    // Get form data
+    const formData = new FormData();
+    formData.append('report_type', document.getElementById('reportType').value);
+    formData.append('start_date', document.getElementById('startDate').value);
+    formData.append('end_date', document.getElementById('endDate').value);
+    formData.append('class', document.getElementById('classFilter').value);
+    formData.append('subject', document.getElementById('subjectFilter').value);
+    formData.append('group_by', document.getElementById('groupBy').value);
+
+    // Send request
+    fetch('{% url "teacher_generate_report" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        loadingModal.hide();
+
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
+        // Store report data
+        currentReportData = data;
+        currentReportParams = {
+            report_type: document.getElementById('reportType').value,
+            start_date: document.getElementById('startDate').value,
+            end_date: document.getElementById('endDate').value,
+            class: document.getElementById('classFilter').value,
+            subject: document.getElementById('subjectFilter').value
+        };
+
+        // Show export button
+        document.getElementById('exportBtn').style.display = 'block';
+
+        // Check if preview is requested
+        if (document.getElementById('previewReport').checked) {
+            showReportPreview(data);
+        } else {
+            alert('Hisobot muvaffaqiyatli yaratildi! Endi uni yuklab olishingiz mumkin.');
+        }
+    })
+    .catch(error => {
+        loadingModal.hide();
+        console.error('Error:', error);
+        alert('Hisobot yaratishda xatolik yuz berdi');
+    });
+
+    return false;
+}
+
+function showReportPreview(reportData) {
+    const previewContent = document.getElementById('reportPreviewContent');
+    const metadata = reportData.metadata;
+
+    let html = `
+        <div class="report-preview">
+            <div class="report-header mb-4">
+                <h4>${getReportTypeName(metadata.report_type)}</h4>
+                <div class="text-muted">
+                    <p><strong>Davr:</strong> ${metadata.start_date} - ${metadata.end_date}</p>
+                    <p><strong>O'qituvchi:</strong> ${metadata.teacher_name}</p>
+                    <p><strong>Yaratilgan:</strong> ${metadata.generated_at}</p>
+                    <p><strong>Jami yozuvlar:</strong> ${metadata.total_records}</p>
+                </div>
+                <hr>
+            </div>
+    `;
+
+    // Add report content based on type
+    if (metadata.report_type === 'summary') {
+        html += generateSummaryPreview(reportData);
+    } else if (metadata.report_type === 'detailed') {
+        html += generateDetailedPreview(reportData);
+    } else if (metadata.report_type === 'student') {
+        html += generateStudentPreview(reportData);
+    } else if (metadata.report_type === 'subject') {
+        html += generateSubjectPreview(reportData);
+    } else {
+        html += generateDailyPreview(reportData);
+    }
+
+    html += `</div>`;
+    previewContent.innerHTML = html;
+
+    const previewModal = new bootstrap.Modal(document.getElementById('reportPreviewModal'));
+    previewModal.show();
+}
+
+function generateSummaryPreview(data) {
+    let html = `
+        <div class="table-responsive">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Davr</th>
+                        <th>Jami</th>
+                        <th>Qatnashgan</th>
+                        <th>Qatnashmagan</th>
+                        <th>Foiz</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    data.summary.forEach(item => {
+        html += `
+            <tr>
+                <td>${item.period}</td>
+                <td>${item.total}</td>
+                <td>${item.present}</td>
+                <td>${item.absent}</td>
+                <td>
+                    <span class="badge ${getPercentageBadgeClass(item.percentage)}">
+                        ${item.percentage}%
+                    </span>
+                </td>
+            </tr>
+        `;
+    });
+
+    if (data.totals) {
+        html += `
+            <tr class="table-secondary">
+                <td><strong>Jami:</strong></td>
+                <td><strong>${data.totals.total}</strong></td>
+                <td><strong>${data.totals.present}</strong></td>
+                <td><strong>${data.totals.absent}</strong></td>
+                <td></td>
+            </tr>
+        `;
+    }
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    return html;
+}
+
+function generateDetailedPreview(data) {
+    let html = `
+        <div class="table-responsive">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Sana</th>
+                        <th>O'quvchi</th>
+                        <th>Sinf</th>
+                        <th>Fan</th>
+                        <th>Holat</th>
+                        <th>Izoh</th>
+                        <th>Vaqt</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    data.detailed.forEach(item => {
+        html += `
+            <tr>
+                <td>${item.date}</td>
+                <td>${item.student_name}</td>
+                <td>${item.class_name}</td>
+                <td>${item.subject_name}</td>
+                <td>
+                    <span class="badge ${getStatusBadgeClass(item.status_code)}">
+                        ${item.status}
+                    </span>
+                </td>
+                <td>${item.notes || '-'}</td>
+                <td>${item.time}</td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-3 text-muted">
+            Ko'rsatilgan yozuvlar: ${data.count} ta
+        </div>
+    `;
+
+    return html;
+}
+
+function generateStudentPreview(data) {
+    let html = `
+        <div class="table-responsive">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>O'quvchi</th>
+                        <th>Sinf</th>
+                        <th>Jami</th>
+                        <th>Qatnashgan</th>
+                        <th>Qatnashmagan</th>
+                        <th>Kech qolgan</th>
+                        <th>Sababli</th>
+                        <th>Foiz</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    data.students.forEach(item => {
+        html += `
+            <tr>
+                <td>${item.student_name}</td>
+                <td>${item.class_name}</td>
+                <td>${item.total}</td>
+                <td>${item.present}</td>
+                <td>${item.absent}</td>
+                <td>${item.late}</td>
+                <td>${item.excused}</td>
+                <td>
+                    <span class="badge ${getPercentageBadgeClass(item.percentage)}">
+                        ${item.percentage}%
+                    </span>
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-3">
+            <p><strong>O'rtacha foiz:</strong> ${data.average_percentage}%</p>
+            <p><strong>Jami o'quvchilar:</strong> ${data.total_students} ta</p>
+        </div>
+    `;
+
+    return html;
+}
+
+function generateSubjectPreview(data) {
+    let html = `
+        <div class="table-responsive">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Fan</th>
+                        <th>Jami</th>
+                        <th>Qatnashgan</th>
+                        <th>Foiz</th>
+                        <th>Sinflar</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    data.subjects.forEach(item => {
+        html += `
+            <tr>
+                <td>${item.subject_name}</td>
+                <td>${item.total}</td>
+                <td>${item.present}</td>
+                <td>
+                    <span class="badge ${getPercentageBadgeClass(item.percentage)}">
+                        ${item.percentage}%
+                    </span>
+                </td>
+                <td>${item.classes_count}</td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-3">
+            <p><strong>O'rtacha foiz:</strong> ${data.average_percentage}%</p>
+            <p><strong>Jami fanlar:</strong> ${data.total_subjects} ta</p>
+        </div>
+    `;
+
+    return html;
+}
+
+function generateDailyPreview(data) {
+    let html = `
+        <div class="table-responsive">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Sana</th>
+                        <th>Kun</th>
+                        <th>Jami</th>
+                        <th>Qatnashgan</th>
+                        <th>Foiz</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    data.daily.forEach(item => {
+        html += `
+            <tr>
+                <td>${item.date}</td>
+                <td>${item.day}</td>
+                <td>${item.total}</td>
+                <td>${item.present}</td>
+                <td>
+                    <span class="badge ${getPercentageBadgeClass(item.percentage)}">
+                        ${item.percentage}%
+                    </span>
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-3">
+            <p><strong>O'rtacha kunlik foiz:</strong> ${data.average_daily}%</p>
+            <p><strong>Jami kunlar:</strong> ${data.days_count} kun</p>
+        </div>
+    `;
+
+    return html;
+}
+
+function getReportTypeName(type) {
+    const names = {
+        'summary': 'Umumiy hisobot',
+        'detailed': 'Batafsil hisobot',
+        'student': 'O\'quvchi hisoboti',
+        'subject': 'Fan hisoboti',
+        'daily': 'Kunlik hisobot'
+    };
+    return names[type] || type;
+}
+
+function getPercentageBadgeClass(percentage) {
+    if (percentage >= 90) return 'bg-success';
+    if (percentage >= 70) return 'bg-warning';
+    return 'bg-danger';
+}
+
+function getStatusBadgeClass(status) {
+    const classes = {
+        'present': 'bg-success',
+        'absent': 'bg-danger',
+        'late': 'bg-warning',
+        'excused': 'bg-info'
+    };
+    return classes[status] || 'bg-secondary';
+}
+
+function exportReport() {
+    if (!currentReportParams) {
+        alert('Iltimos, avval hisobot yarating');
+        return;
+    }
+
+    // Default to CSV export
+    exportReportFormat('csv');
+}
+
+function exportReportFormat(format) {
+    if (!currentReportParams) {
+        alert('Iltimos, avval hisobot yarating');
+        return;
+    }
+
+    // Build export URL
+    const params = new URLSearchParams(currentReportParams);
+    params.append('format', format);
+
+    window.location.href = `{% url 'teacher_export_report' %}?${params.toString()}`;
+}
+
+function generateQuickReport(type) {
+    const today = new Date();
+    const startDate = new Date();
+
+    switch(type) {
+        case 'daily':
+            // Today's report
+            startDate.setDate(today.getDate());
+            document.getElementById('reportType').value = 'daily';
+            break;
+        case 'weekly':
+            // Last 7 days
+            startDate.setDate(today.getDate() - 7);
+            document.getElementById('reportType').value = 'summary';
+            break;
+        case 'monthly':
+            // Last 30 days
+            startDate.setDate(today.getDate() - 30);
+            document.getElementById('reportType').value = 'summary';
+            break;
+        case 'student':
+            // Student report for last 30 days
+            startDate.setDate(today.getDate() - 30);
+            document.getElementById('reportType').value = 'student';
+            break;
+    }
+
+    document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+    document.getElementById('endDate').value = today.toISOString().split('T')[0];
+
+    showGenerateReportModal();
+}
+
+function printReport() {
+    window.print();
+}
+
+function viewAllStudents() {
+    // Navigate to student report
+    generateQuickReport('student');
+}
+
+function viewAllSubjects() {
+    // Set up subject report
+    const today = new Date();
+    const startDate = new Date();
+    startDate.setDate(today.getDate() - 30);
+
+    document.getElementById('reportType').value = 'subject';
+    document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
+    document.getElementById('endDate').value = today.toISOString().split('T')[0];
+
+    showGenerateReportModal();
+}
+
+// Utility function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Auto-refresh charts every 5 minutes
+setInterval(() => {
+    refreshCharts();
+}, 300000);
+</script>
+{% endblock %}

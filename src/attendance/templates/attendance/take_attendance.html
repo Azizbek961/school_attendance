@@ -1,0 +1,797 @@
+{% extends 'attendance/base_admin.html' %}
+
+{% block title %}Davomat Olish - SAMO School{% endblock %}
+{% block page_title %}Davomat Olish{% endblock %}
+{% block page_subtitle %}O'quvchilarning davomatini qayd etish{% endblock %}
+
+{% block content %}
+<div class="dashboard-card">
+    <div class="card-header">
+        <h3>Davomat Olish Formasi</h3>
+        <a href="{% url 'manage_attendance' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Orqaga
+        </a>
+    </div>
+
+    <div class="card-body">
+        {% if messages %}
+        <div class="messages mb-4">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Davomat olish formasi -->
+        <form method="post" id="attendanceForm" class="needs-validation" novalidate>
+            {% csrf_token %}
+
+            <!-- Tanlov qismi -->
+            <div class="selection-section mb-5">
+                <h4 class="section-title">Tanlovlar</h4>
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <label for="class_id" class="form-label">Sinf *</label>
+                        <select class="form-control" id="class_id" name="class_id" required onchange="loadClassStudents()">
+                            <option value="">Sinfni tanlang</option>
+                            {% for class in classes %}
+                            <option value="{{ class.id }}">{{ class.name }} - {{ class.teacher.get_full_name|default:"Rahbarsiz" }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Davomat olinadigan sinfni tanlang</div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="subject_id" class="form-label">Fan *</label>
+                        <select class="form-control" id="subject_id" name="subject_id" required>
+                            <option value="">Fanni tanlang</option>
+                            {% for subject in subjects %}
+                            <option value="{{ subject.id }}">{{ subject.name }} - {{ subject.teacher.get_full_name|default:"O'qituvchisiz" }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Davomat olinadigan fanni tanlang</div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label for="date" class="form-label">Sana *</label>
+                        <input type="date" class="form-control" id="date" name="date"
+                               value="{% now 'Y-m-d' %}" required>
+                        <div class="form-text">Davomat olinadigan sana</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- O'quvchilar ro'yxati -->
+            <div class="students-section" id="studentsSection" style="display: none;">
+                <h4 class="section-title">O'quvchilar Davomati</h4>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Har bir o'quvchi uchun davomat holatini belgilang. Holat tanlanmagan o'quvchilar "Qatnashmagan" deb hisoblanadi.
+                </div>
+
+                <!-- Davomat holatlari ko'rsatkichlari -->
+                <div class="attendance-indicators mb-4">
+                    <div class="indicator present">
+                        <span class="dot"></span>
+                        <span>Bor</span>
+                    </div>
+                    <div class="indicator absent">
+                        <span class="dot"></span>
+                        <span>Yo'q</span>
+                    </div>
+                    <div class="indicator late">
+                        <span class="dot"></span>
+                        <span>Kechikdi</span>
+                    </div>
+                    <div class="indicator excused">
+                        <span class="dot"></span>
+                        <span>Sababli</span>
+                    </div>
+                </div>
+
+                <!-- O'quvchilar jadvali -->
+                <div class="table-responsive" id="studentsTableContainer">
+                    <table class="data-table" id="studentsTable">
+                        <thead>
+                            <tr>
+                                <th width="50">#</th>
+                                <th>O'quvchi</th>
+                                <th width="200">Davomat Holati</th>
+                                <th>Izoh</th>
+                                <th width="100">Amal</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentsList">
+                            <!-- O'quvchilar bu yerda JavaScript orqali yuklanadi -->
+                            <tr id="noStudentsMessage">
+                                <td colspan="5" class="text-center py-5">
+                                    <div class="empty-state">
+                                        <i class="fas fa-users fa-3x mb-3"></i>
+                                        <h4>O'quvchilar topilmadi</h4>
+                                        <p>Iltimos, avval sinfni tanlang</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Statistika -->
+                <div class="row mt-4">
+                    <div class="col-md-3">
+                        <div class="stat-card bg-primary">
+                            <i class="fas fa-users"></i>
+                            <div>
+                                <h4 id="totalStudents">0</h4>
+                                <p>Jami o'quvchi</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card bg-success">
+                            <i class="fas fa-user-check"></i>
+                            <div>
+                                <h4 id="presentCount">0</h4>
+                                <p>Borlar</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card bg-danger">
+                            <i class="fas fa-user-times"></i>
+                            <div>
+                                <h4 id="absentCount">0</h4>
+                                <p>Yo'qlar</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card bg-warning">
+                            <i class="fas fa-percentage"></i>
+                            <div>
+                                <h4 id="attendancePercentage">0%</h4>
+                                <p>Davomat</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form amallari -->
+            <div class="form-actions mt-5">
+                <button type="submit" class="btn btn-primary btn-lg" id="saveBtn" disabled>
+                    <i class="fas fa-save"></i> Davomatni Saqlash
+                </button>
+                <button type="button" class="btn btn-secondary btn-lg" onclick="resetForm()">
+                    <i class="fas fa-redo"></i> Tozalash
+                </button>
+                <button type="button" class="btn btn-success btn-lg" id="markAllPresentBtn" style="display: none;">
+                    <i class="fas fa-check-circle"></i> Hammasi Bor
+                </button>
+                <button type="button" class="btn btn-danger btn-lg" id="markAllAbsentBtn" style="display: none;">
+                    <i class="fas fa-times-circle"></i> Hammasi Yo'q
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// O'quvchilar ma'lumotlari
+let students = [];
+let attendanceData = {};
+
+// Sinf tanlanganda o'quvchilarni yuklash
+async function loadClassStudents() {
+    const classId = document.getElementById('class_id').value;
+    const studentsSection = document.getElementById('studentsSection');
+    const saveBtn = document.getElementById('saveBtn');
+    const markAllPresentBtn = document.getElementById('markAllPresentBtn');
+    const markAllAbsentBtn = document.getElementById('markAllAbsentBtn');
+
+    if (!classId) {
+        studentsSection.style.display = 'none';
+        saveBtn.disabled = true;
+        markAllPresentBtn.style.display = 'none';
+        markAllAbsentBtn.style.display = 'none';
+        return;
+    }
+
+    try {
+        // Loading holatini ko'rsatish
+        document.getElementById('studentsList').innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Yuklanmoqda...</span>
+                    </div>
+                    <p class="mt-2">O'quvchilar yuklanmoqda...</p>
+                </td>
+            </tr>
+        `;
+
+        // AJAX orqali o'quvchilarni yuklash
+        const response = await fetch(`/attendance/get-class-students/${classId}/`);
+        if (!response.ok) throw new Error('Server error');
+
+        const data = await response.json();
+        students = data.students;
+
+        // O'quvchilar ro'yxatini ko'rsatish
+        displayStudents();
+
+        // Bo'limlarni ko'rsatish
+        studentsSection.style.display = 'block';
+        saveBtn.disabled = false;
+        markAllPresentBtn.style.display = 'inline-block';
+        markAllAbsentBtn.style.display = 'inline-block';
+
+        // Statistika yangilash
+        updateStatistics();
+
+    } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('studentsList').innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center py-5">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        O'quvchilar yuklanmadi. Iltimos, qayta urinib ko'ring.
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// O'quvchilarni jadvalda ko'rsatish
+function displayStudents() {
+    const tbody = document.getElementById('studentsList');
+    const noStudentsMessage = document.getElementById('noStudentsMessage');
+
+    if (noStudentsMessage) {
+        noStudentsMessage.remove();
+    }
+
+    let html = '';
+
+    students.forEach((student, index) => {
+        // Har bir o'quvchi uchun boshlang'ich davomat holati
+        if (!attendanceData[student.id]) {
+            attendanceData[student.id] = {
+                status: 'absent',
+                notes: ''
+            };
+        }
+
+        html += `
+            <tr id="student-${student.id}">
+                <td>${index + 1}</td>
+                <td>
+                    <div class="user-cell">
+                        <div class="user-avatar student">
+                            ${student.name.charAt(0)}
+                        </div>
+                        <div class="user-info">
+                            <strong>${student.name}</strong>
+                            <small>${student.username}</small>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="attendance-status">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <input type="radio" class="btn-check" name="status_${student.id}"
+                                   id="present_${student.id}" value="present"
+                                   ${attendanceData[student.id].status === 'present' ? 'checked' : ''}
+                                   onchange="updateAttendance(${student.id}, 'present', '')">
+                            <label class="btn btn-outline-success" for="present_${student.id}">
+                                <i class="fas fa-check"></i> Bor
+                            </label>
+
+                            <input type="radio" class="btn-check" name="status_${student.id}"
+                                   id="absent_${student.id}" value="absent"
+                                   ${attendanceData[student.id].status === 'absent' ? 'checked' : ''}
+                                   onchange="updateAttendance(${student.id}, 'absent', '')">
+                            <label class="btn btn-outline-danger" for="absent_${student.id}">
+                                <i class="fas fa-times"></i> Yo'q
+                            </label>
+
+                            <input type="radio" class="btn-check" name="status_${student.id}"
+                                   id="late_${student.id}" value="late"
+                                   ${attendanceData[student.id].status === 'late' ? 'checked' : ''}
+                                   onchange="updateAttendance(${student.id}, 'late', '')">
+                            <label class="btn btn-outline-warning" for="late_${student.id}">
+                                <i class="fas fa-clock"></i> Kech
+                            </label>
+
+                            <input type="radio" class="btn-check" name="status_${student.id}"
+                                   id="excused_${student.id}" value="excused"
+                                   ${attendanceData[student.id].status === 'excused' ? 'checked' : ''}
+                                   onchange="updateAttendance(${student.id}, 'excused', '')">
+                            <label class="btn btn-outline-info" for="excused_${student.id}">
+                                <i class="fas fa-notes-medical"></i> Sabab
+                            </label>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <input type="text" class="form-control form-control-sm notes-input"
+                           id="notes_${student.id}"
+                           placeholder="Izoh (ixtiyoriy)"
+                           value="${attendanceData[student.id].notes || ''}"
+                           onchange="updateAttendance(${student.id}, null, this.value)">
+                </td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-outline-primary"
+                            onclick="toggleStudentNotes(${student.id})">
+                        <i class="fas fa-sticky-note"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+
+    // Jami o'quvchilar soni
+    document.getElementById('totalStudents').textContent = students.length;
+}
+
+// Davomat holatini yangilash
+function updateAttendance(studentId, status, notes) {
+    if (!attendanceData[studentId]) {
+        attendanceData[studentId] = {};
+    }
+
+    if (status !== null) {
+        attendanceData[studentId].status = status;
+    }
+
+    if (notes !== null && notes !== undefined) {
+        attendanceData[studentId].notes = notes;
+    }
+
+    // Statistika yangilash
+    updateStatistics();
+}
+
+// Statistika yangilash
+function updateStatistics() {
+    let present = 0;
+    let absent = 0;
+    let late = 0;
+    let excused = 0;
+
+    // O'quvchilarning holatlarini hisoblash
+    Object.values(attendanceData).forEach(data => {
+        switch(data.status) {
+            case 'present':
+                present++;
+                break;
+            case 'absent':
+                absent++;
+                break;
+            case 'late':
+                late++;
+                break;
+            case 'excused':
+                excused++;
+                break;
+        }
+    });
+
+    // Ko'rsatkichlarni yangilash
+    document.getElementById('presentCount').textContent = present;
+    document.getElementById('absentCount').textContent = absent;
+
+    // Davomat foizini hisoblash
+    const total = students.length;
+    const attendancePercentage = total > 0 ? Math.round((present / total) * 100) : 0;
+    document.getElementById('attendancePercentage').textContent = attendancePercentage + '%';
+
+    // Progress bar yangilash
+    updateProgressBar(present, total);
+}
+
+// Progress bar yangilash
+function updateProgressBar(present, total) {
+    const percentage = total > 0 ? (present / total) * 100 : 0;
+    const progressBar = document.getElementById('attendanceProgress');
+
+    if (progressBar) {
+        progressBar.style.width = percentage + '%';
+        progressBar.setAttribute('aria-valuenow', percentage);
+    }
+}
+
+// Formani tozalash
+function resetForm() {
+    if (confirm('Formani tozalashni tasdiqlaysizmi? Barcha tanlovlar va davomat ma\'lumotlari o\'chiriladi.')) {
+        document.getElementById('class_id').value = '';
+        document.getElementById('subject_id').value = '';
+        document.getElementById('date').value = '{% now "Y-m-d" %}';
+
+        document.getElementById('studentsSection').style.display = 'none';
+        document.getElementById('saveBtn').disabled = true;
+        document.getElementById('markAllPresentBtn').style.display = 'none';
+        document.getElementById('markAllAbsentBtn').style.display = 'none';
+
+        students = [];
+        attendanceData = {};
+
+        document.getElementById('studentsList').innerHTML = `
+            <tr id="noStudentsMessage">
+                <td colspan="5" class="text-center py-5">
+                    <div class="empty-state">
+                        <i class="fas fa-users fa-3x mb-3"></i>
+                        <h4>O'quvchilar topilmadi</h4>
+                        <p>Iltimos, avval sinfni tanlang</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        updateStatistics();
+    }
+}
+
+// Hammasi Bor tugmasi
+document.getElementById('markAllPresentBtn').addEventListener('click', function() {
+    if (confirm('Barcha o\'quvchilarni "Bor" deb belgilashni tasdiqlaysizmi?')) {
+        students.forEach(student => {
+            updateAttendance(student.id, 'present', '');
+            document.getElementById(`present_${student.id}`).checked = true;
+        });
+        displayStudents();
+    }
+});
+
+// Hammasi Yo'q tugmasi
+document.getElementById('markAllAbsentBtn').addEventListener('click', function() {
+    if (confirm('Barcha o\'quvchilarni "Yo\'q" deb belgilashni tasdiqlaysizmi?')) {
+        students.forEach(student => {
+            updateAttendance(student.id, 'absent', '');
+            document.getElementById(`absent_${student.id}`).checked = true;
+        });
+        displayStudents();
+    }
+});
+
+// Izoh maydonini kengaytirish/kichraytirish
+function toggleStudentNotes(studentId) {
+    const notesInput = document.getElementById(`notes_${studentId}`);
+    const currentClass = notesInput.className;
+
+    if (currentClass.includes('notes-expanded')) {
+        notesInput.className = 'form-control form-control-sm notes-input';
+        notesInput.placeholder = 'Izoh (ixtiyoriy)';
+    } else {
+        notesInput.className = 'form-control notes-expanded notes-input';
+        notesInput.placeholder = 'Izohni kiriting...';
+        notesInput.focus();
+    }
+}
+
+// Form yuborilganda davomat ma'lumotlarini tayyorlash
+document.getElementById('attendanceForm').addEventListener('submit', function(e) {
+    // Form validation
+    if (!this.checkValidity()) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.classList.add('was-validated');
+        return;
+    }
+
+    // Har bir o'quvchi uchun hidden input yaratish
+    students.forEach(student => {
+        if (attendanceData[student.id]) {
+            // Status input
+            const statusInput = document.createElement('input');
+            statusInput.type = 'hidden';
+            statusInput.name = `status_${student.id}`;
+            statusInput.value = attendanceData[student.id].status;
+            this.appendChild(statusInput);
+
+            // Notes input
+            const notesInput = document.createElement('input');
+            notesInput.type = 'hidden';
+            notesInput.name = `notes_${student.id}`;
+            notesInput.value = attendanceData[student.id].notes || '';
+            this.appendChild(notesInput);
+        }
+    });
+
+    // Loading holatini ko'rsatish
+    const saveBtn = document.getElementById('saveBtn');
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saqlanmoqda...';
+    saveBtn.disabled = true;
+});
+
+// Sahifa yuklanganda
+document.addEventListener('DOMContentLoaded', function() {
+    // Bugungi sanani o'rnatish
+    const today = new Date().toISOString().split('T')[0];
+    const dateInput = document.getElementById('date');
+    if (!dateInput.value) {
+        dateInput.value = today;
+    }
+
+    // Tugmalarni o'rnatish
+    const markAllPresentBtn = document.getElementById('markAllPresentBtn');
+    const markAllAbsentBtn = document.getElementById('markAllAbsentBtn');
+
+    if (markAllPresentBtn && markAllAbsentBtn) {
+        markAllPresentBtn.addEventListener('click', function() {
+            if (confirm('Barcha o\'quvchilarni "Bor" deb belgilashni tasdiqlaysizmi?')) {
+                students.forEach(student => {
+                    updateAttendance(student.id, 'present', '');
+                });
+                displayStudents();
+            }
+        });
+
+        markAllAbsentBtn.addEventListener('click', function() {
+            if (confirm('Barcha o\'quvchilarni "Yo\'q" deb belgilashni tasdiqlaysizmi?')) {
+                students.forEach(student => {
+                    updateAttendance(student.id, 'absent', '');
+                });
+                displayStudents();
+            }
+        });
+    }
+});
+</script>
+
+<style>
+/* Custom styles for take_attendance.html */
+.section-title {
+    font-size: 1.2rem;
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.selection-section {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.attendance-indicators {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.indicator .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.indicator.present .dot {
+    background: #2ecc71;
+}
+
+.indicator.absent .dot {
+    background: #e74c3c;
+}
+
+.indicator.late .dot {
+    background: #f39c12;
+}
+
+.indicator.excused .dot {
+    background: #3498db;
+}
+
+.attendance-status .btn-group {
+    width: 100%;
+    flex-wrap: nowrap;
+}
+
+.attendance-status .btn {
+    padding: 4px 8px;
+    font-size: 12px;
+    flex: 1;
+}
+
+.attendance-status .btn-check:checked + .btn-outline-success {
+    background: #2ecc71;
+    color: white;
+    border-color: #2ecc71;
+}
+
+.attendance-status .btn-check:checked + .btn-outline-danger {
+    background: #e74c3c;
+    color: white;
+    border-color: #e74c3c;
+}
+
+.attendance-status .btn-check:checked + .btn-outline-warning {
+    background: #f39c12;
+    color: white;
+    border-color: #f39c12;
+}
+
+.attendance-status .btn-check:checked + .btn-outline-info {
+    background: #3498db;
+    color: white;
+    border-color: #3498db;
+}
+
+.notes-input {
+    transition: all 0.3s ease;
+}
+
+.notes-input.notes-expanded {
+    height: 80px;
+}
+
+.user-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.user-avatar.student {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-info strong {
+    font-size: 14px;
+    color: #2c3e50;
+}
+
+.user-info small {
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+.stat-card {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    border-radius: 8px;
+    color: white;
+    margin-bottom: 15px;
+}
+
+.stat-card i {
+    font-size: 24px;
+    opacity: 0.9;
+}
+
+.stat-card h4 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.stat-card p {
+    margin: 0;
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+.stat-card.bg-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.stat-card.bg-success { background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%); }
+.stat-card.bg-danger { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); }
+.stat-card.bg-warning { background: linear-gradient(135deg, #f39c12 0%, #d35400 100%); }
+
+.form-actions {
+    display: flex;
+    justify-content: flex-start;
+    gap: 1rem;
+    border-top: 1px solid #dee2e6;
+    padding-top: 2rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 20px;
+}
+
+.empty-state i {
+    color: #bdc3c7;
+}
+
+.empty-state h4 {
+    color: #7f8c8d;
+    margin: 10px 0;
+}
+
+.empty-state p {
+    color: #95a5a6;
+    margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .form-actions .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    .attendance-indicators {
+        justify-content: center;
+    }
+
+    .attendance-status .btn-group {
+        flex-wrap: wrap;
+    }
+
+    .attendance-status .btn {
+        flex: 0 0 calc(50% - 2px);
+        margin-bottom: 4px;
+    }
+}
+
+/* Progress bar */
+.progress {
+    height: 10px;
+    margin-top: 10px;
+}
+
+.progress-bar {
+    transition: width 0.3s ease;
+}
+
+/* Form validation */
+.was-validated .form-control:invalid {
+    border-color: #e74c3c;
+}
+
+.was-validated .form-control:valid {
+    border-color: #2ecc71;
+}
+
+/* Loading animation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.fa-spinner {
+    animation: spin 1s linear infinite;
+}
+</style>
+{% endblock %}

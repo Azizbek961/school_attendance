@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="uz" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Davomatni Tahrirlash - SAMO School</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Custom CSS -->
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem 0;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            border: none;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-header {
+            background-color: white;
+            border-bottom: 2px solid #f0f0f0;
+            font-weight: 600;
+            font-size: 1.2rem;
+            padding: 1.2rem 1.5rem;
+        }
+
+        .btn-save {
+            background: linear-gradient(to right, #00b09b, #96c93d);
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-save:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0, 176, 155, 0.4);
+        }
+
+        .btn-cancel {
+            background-color: #f8f9fa;
+            color: #6c757d;
+            border: 1px solid #dee2e6;
+            padding: 10px 25px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-cancel:hover {
+            background-color: #e9ecef;
+            color: #495057;
+        }
+
+        .attendance-status {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .form-check {
+            margin-bottom: 0.5rem;
+        }
+
+        .form-check-input {
+            width: 1.2em;
+            height: 1.2em;
+            margin-top: 0.2em;
+        }
+
+        .form-check-label {
+            font-size: 0.95rem;
+            padding-left: 0.5rem;
+        }
+
+        .table-responsive {
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .table th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            padding: 1rem;
+        }
+
+        .table td {
+            padding: 1rem;
+            vertical-align: middle;
+        }
+
+        .badge-present {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .badge-absent {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .badge-late {
+            background-color: #ffc107;
+            color: black;
+        }
+
+        .badge-excused {
+            background-color: #17a2b8;
+            color: white;
+        }
+
+        .student-name {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .student-id {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+        .date-picker {
+            max-width: 200px;
+        }
+
+        @media (max-width: 768px) {
+            .card-header {
+                font-size: 1.1rem;
+                padding: 1rem;
+            }
+
+            .table th, .table td {
+                padding: 0.75rem 0.5rem;
+                font-size: 0.9rem;
+            }
+
+            .btn-save, .btn-cancel {
+                padding: 8px 20px;
+                font-size: 0.9rem;
+            }
+
+            .attendance-status {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .table-responsive {
+                font-size: 0.85rem;
+            }
+
+            .form-check {
+                display: inline-block;
+                margin-right: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="mb-0">
+                        <i class="fas fa-edit me-2"></i>
+                        Davomatni Tahrirlash
+                    </h1>
+                    <p class="mb-0 opacity-75">O'quvchilarning davomat holatini yangilang</p>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="badge bg-light text-dark fs-6">
+                        <i class="fas fa-calendar-alt me-1"></i>
+                        {% now "d.m.Y" %}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-12">
+                <!-- Davomat Ma'lumotlari Kartasi -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>
+                            <i class="fas fa-info-circle me-2"></i>
+                            Davomat Ma'lumotlari
+                        </span>
+                        <a href="{% url 'teacher_dashboard' %}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-arrow-left me-1"></i> Orqaga
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-4">
+                            <div class="col-md-6 col-lg-3 mb-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-primary bg-opacity-10 p-3 rounded me-3">
+                                        <i class="fas fa-chalkboard-teacher text-primary fs-4"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-muted mb-0">O'qituvchi</p>
+                                        <h5 class="mb-0">{{ attendance.teacher.get_full_name }}</h5>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 col-lg-3 mb-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-success bg-opacity-10 p-3 rounded me-3">
+                                        <i class="fas fa-book text-success fs-4"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-muted mb-0">Fan</p>
+                                        <h5 class="mb-0">{{ attendance.subject.name }}</h5>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 col-lg-3 mb-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-warning bg-opacity-10 p-3 rounded me-3">
+                                        <i class="fas fa-users text-warning fs-4"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-muted mb-0">Sinf</p>
+                                        <h5 class="mb-0">{{ attendance.classroom.name }}</h5>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6 col-lg-3 mb-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-info bg-opacity-10 p-3 rounded me-3">
+                                        <i class="fas fa-calendar-day text-info fs-4"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-muted mb-0">Sana</p>
+                                        <h5 class="mb-0">{{ attendance.date|date:"d.m.Y" }}</h5>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tahrirlash Formasi -->
+                        <form method="post" action="">
+                            {% csrf_token %}
+
+                            <!-- Sana o'zgartirish (agar kerak bo'lsa) -->
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <label for="date" class="form-label fw-bold">
+                                        <i class="fas fa-calendar me-1"></i>
+                                        Sana
+                                    </label>
+                                    <input type="date" class="form-control" id="date" name="date"
+                                           value="{{ attendance.date|date:'Y-m-d' }}" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="attendance-status mt-4">
+                                        <div class="form-text">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Davomat holatlarini tanlang:
+                                        </div>
+                                        <div>
+                                            <span class="badge badge-present me-2">Present</span>
+                                            <span class="badge badge-absent me-2">Absent</span>
+                                            <span class="badge badge-late me-2">Late</span>
+                                            <span class="badge badge-excused">Excused</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- O'quvchilar ro'yxati -->
+                            <div class="table-responsive mb-4">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr class="bg-light">
+                                            <th width="5%">№</th>
+                                            <th width="35%">O'quvchi</th>
+                                            <th width="30%">Davomat holati</th>
+                                            <th width="30%">Izoh</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for record in attendance_records %}
+                                        <tr>
+                                            <td>{{ forloop.counter }}</td>
+                                            <td>
+                                                <div class="student-name">
+                                                    {{ record.student.user.get_full_name }}
+                                                </div>
+                                                <div class="student-id">
+                                                    ID: {{ record.student.id }}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group" aria-label="Davomat holati">
+                                                    <input type="radio" class="btn-check"
+                                                           name="status_{{ record.student.id }}"
+                                                           id="present_{{ record.student.id }}"
+                                                           value="present"
+                                                           {% if record.status == 'present' %}checked{% endif %}>
+                                                    <label class="btn btn-outline-success btn-sm" for="present_{{ record.student.id }}">
+                                                        <i class="fas fa-check"></i> Present
+                                                    </label>
+
+                                                    <input type="radio" class="btn-check"
+                                                           name="status_{{ record.student.id }}"
+                                                           id="absent_{{ record.student.id }}"
+                                                           value="absent"
+                                                           {% if record.status == 'absent' %}checked{% endif %}>
+                                                    <label class="btn btn-outline-danger btn-sm" for="absent_{{ record.student.id }}">
+                                                        <i class="fas fa-times"></i> Absent
+                                                    </label>
+
+                                                    <input type="radio" class="btn-check"
+                                                           name="status_{{ record.student.id }}"
+                                                           id="late_{{ record.student.id }}"
+                                                           value="late"
+                                                           {% if record.status == 'late' %}checked{% endif %}>
+                                                    <label class="btn btn-outline-warning btn-sm" for="late_{{ record.student.id }}">
+                                                        <i class="fas fa-clock"></i> Late
+                                                    </label>
+
+                                                    <input type="radio" class="btn-check"
+                                                           name="status_{{ record.student.id }}"
+                                                           id="excused_{{ record.student.id }}"
+                                                           value="excused"
+                                                           {% if record.status == 'excused' %}checked{% endif %}>
+                                                    <label class="btn btn-outline-info btn-sm" for="excused_{{ record.student.id }}">
+                                                        <i class="fas fa-user-check"></i> Excused
+                                                    </label>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <input type="text" class="form-control form-control-sm"
+                                                       name="comment_{{ record.student.id }}"
+                                                       value="{{ record.comment|default:'' }}"
+                                                       placeholder="Izoh...">
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="4" class="text-center py-4">
+                                                <div class="text-muted">
+                                                    <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                                                    <h5>Hech qanday davomat yozuvi topilmadi</h5>
+                                                    <p>Ushbu davomatda o'quvchilar ro'yxati mavjud emas</p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Statistika -->
+                            <div class="row mb-4">
+                                <div class="col-md-3 col-6 mb-3">
+                                    <div class="card border-success border-2">
+                                        <div class="card-body text-center">
+                                            <h2 class="text-success mb-1">{{ present_count }}</h2>
+                                            <p class="text-muted mb-0">Present</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-6 mb-3">
+                                    <div class="card border-danger border-2">
+                                        <div class="card-body text-center">
+                                            <h2 class="text-danger mb-1">{{ absent_count }}</h2>
+                                            <p class="text-muted mb-0">Absent</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-6 mb-3">
+                                    <div class="card border-warning border-2">
+                                        <div class="card-body text-center">
+                                            <h2 class="text-warning mb-1">{{ late_count }}</h2>
+                                            <p class="text-muted mb-0">Late</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-6 mb-3">
+                                    <div class="card border-info border-2">
+                                        <div class="card-body text-center">
+                                            <h2 class="text-info mb-1">{{ excused_count }}</h2>
+                                            <p class="text-muted mb-0">Excused</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Harakatlar -->
+                            <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                                <div>
+                                    <a href="{% url 'teacher_dashboard' %}" class="btn btn-cancel">
+                                        <i class="fas fa-times me-1"></i> Bekor qilish
+                                    </a>
+                                </div>
+                                <div>
+                                    <button type="submit" class="btn btn-save">
+                                        <i class="fas fa-save me-1"></i> O'zgarishlarni saqlash
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>SAMO School</h5>
+                    <p class="text-light opacity-75">Ta'lim sifatini oshirish va monitoring qilish tizimi</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="mb-0">&copy; {% now "Y" %} SAMO School. Barcha huquqlar himoyalangan.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS for better UX -->
+    <script>
+        // Radio buttonlar uchun interaktivlik
+        document.addEventListener('DOMContentLoaded', function() {
+            // Har bir radio button guruhi uchun
+            const radioGroups = document.querySelectorAll('input[type="radio"]');
+            radioGroups.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const studentId = this.name.split('_')[1];
+                    updateStats();
+                });
+            });
+
+            // Statistikani yangilash funktsiyasi (demo)
+            function updateStats() {
+                // Bu yerda real statistikani hisoblash mumkin
+                // Hozircha faqat demo
+                console.log('Davomat statistikasi yangilandi');
+            }
+
+            // Sana input uchun o'zgartirish
+            const dateInput = document.getElementById('date');
+            if (dateInput) {
+                dateInput.addEventListener('change', function() {
+                    // Sana o'zgarganda bildirishnoma
+                    if (confirm("Sana o'zgardi. Davomat ma'lumotlari yangi sana uchun saqlanadi. Davom etasizmi?")) {
+                        // Formani yuborish
+                        return true;
+                    } else {
+                        // Eski sanaga qaytarish
+                        this.value = "{{ attendance.date|date:'Y-m-d' }}";
+                        return false;
+                    }
+                });
+            }
+
+            // Formani yuborishdan oldin tasdiqlash
+            const form = document.querySelector('form');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    const presentCount = document.querySelectorAll('input[type="radio"]:checked[value="present"]').length;
+
+                    if (presentCount === 0) {
+                        if (!confirm("Hech kim 'Present' holatida emas. Davom etishni xohlaysizmi?")) {
+                            e.preventDefault();
+                        }
+                    } else {
+                        if (!confirm("Davomatni saqlashni tasdiqlaysizmi?")) {
+                            e.preventDefault();
+                        }
+                    }
+                });
+            }
+        });
+
+        // Mobile uchun optimallashtirish
+        function adjustForMobile() {
+            if (window.innerWidth < 768) {
+                // Kichik ekranlar uchun sozlamalar
+                const btnLabels = document.querySelectorAll('.btn-group label');
+                btnLabels.forEach(label => {
+                    label.innerHTML = label.innerHTML.replace(' Present', '')
+                                                     .replace(' Absent', '')
+                                                     .replace(' Late', '')
+                                                     .replace(' Excused', '');
+                });
+            }
+        }
+
+        // Ekran o'lchami o'zgarganda
+        window.addEventListener('resize', adjustForMobile);
+
+        // Dastlabki yuklanishda
+        adjustForMobile();
+    </script>
+</body>
+</html>

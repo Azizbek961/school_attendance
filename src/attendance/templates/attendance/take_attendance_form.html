@@ -1,0 +1,118 @@
+<!-- attendance/templates/attendance/take_attendance_form.html -->
+{% extends 'attendance/base.html' %}
+
+{% block title %}Davomat olish - {{ class_obj.name }} - {{ subject.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">
+                <i class="fas fa-clipboard-check me-2"></i>
+                Davomat olish
+            </h4>
+        </div>
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h5>Sinf: {{ class_obj.name }}</h5>
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-users me-1"></i>{{ students.count }} o'quvchi
+                        <i class="fas fa-door-open ms-3 me-1"></i>{{ class_obj.room|default:"Xona mavjud emas" }}
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <h5>Fan: {{ subject.name }}</h5>
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-calendar-alt me-1"></i>Bugun: {{ today|date:"d.m.Y" }}
+                    </p>
+                </div>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="date" value="{{ today|date:'Y-m-d' }}">
+
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>№</th>
+                                <th>O'quvchi</th>
+                                <th>Holat</th>
+                                <th>Izoh</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+
+                            {% for profile in students %}
+                            {% with student=profile.user %}
+
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>
+                                    <strong>{{ student.get_full_name }}</strong><br>
+                                    <small class="text-muted">{{ student.username }}</small>
+                                </td>
+                                <td>
+                                    <select name="status_{{ student.id }}" class="form-select form-select-sm" style="min-width: 120px;">
+                                        <option value="present" {% if existing and existing.status == 'present' %}selected{% endif %}>Present</option>
+                                        <option value="absent" {% if existing and existing.status == 'absent' %}selected{% endif %}>Absent</option>
+                                        <option value="late" {% if existing and existing.status == 'late' %}selected{% endif %}>Late</option>
+                                        <option value="excused" {% if existing and existing.status == 'excused' %}selected{% endif %}>Excused</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="text" name="notes_{{ student.id }}"
+                                           class="form-control form-control-sm"
+                                           value="{{ existing.notes|default:'' }}"
+                                           placeholder="Izoh (ixtiyoriy)">
+                                </td>
+                            </tr>
+                            {% endwith %}
+
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{% url 'teacher_dashboard' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Orqaga
+                    </a>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save me-1"></i>Davomatni saqlash
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-save warning
+let formChanged = false;
+const form = document.querySelector('form');
+const inputs = form.querySelectorAll('select, input');
+
+inputs.forEach(input => {
+    input.addEventListener('change', () => {
+        formChanged = true;
+    });
+});
+
+window.addEventListener('beforeunload', (e) => {
+    if (formChanged) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+
+// Form submit handler
+form.addEventListener('submit', () => {
+    formChanged = false;
+});
+</script>
+{% endblock %}

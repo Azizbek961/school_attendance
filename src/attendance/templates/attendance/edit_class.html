@@ -1,0 +1,469 @@
+{% extends 'attendance/base_admin.html' %}
+
+{% block title %}Sinfni Tahrirlash - SAMO School{% endblock %}
+{% block page_title %}Sinfni Tahrirlash{% endblock %}
+{% block page_subtitle %}{{ class_obj.name }} sinfini tahrirlash{% endblock %}
+
+{% block content %}
+<div class="dashboard-card">
+    <div class="card-header">
+        <h3>Sinf Ma'lumotlarini Tahrirlash</h3>
+        <a href="{% url 'manage_classes' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Orqaga
+        </a>
+    </div>
+
+    <div class="card-body">
+        <form method="post" class="needs-validation" novalidate>
+            {% csrf_token %}
+            
+            {% if messages %}
+            <div class="messages mb-4">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Sinf ID va ma'lumotlar -->
+            <div class="class-info mb-4">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="info-item">
+                            <span class="info-label">Sinf ID:</span>
+                            <span class="info-value">{{ class_obj.id }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Yaratilgan:</span>
+                            <span class="info-value">{{ class_obj.created_at|date:"d.m.Y H:i" }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="info-item">
+                            <span class="info-label">O'quvchilar soni:</span>
+                            <span class="info-value">{{ class_obj.students.count }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Holat:</span>
+                            <span class="badge bg-success">Faol</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <!-- Asosiy ma'lumotlar -->
+                <div class="col-12">
+                    <h4 class="section-title">Asosiy Ma'lumotlar</h4>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="id_name" class="form-label">Sinf Nomi *</label>
+                    <input type="text" class="form-control" id="id_name" name="name" 
+                           value="{{ form.instance.name|default:class_obj.name }}" required>
+                    <div class="form-text">Masalan: 7-A, 8-B, 9-V</div>
+                    {% if form.name.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.name.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6">
+                    <label for="id_teacher" class="form-label">Sinf Rahbari</label>
+                    <select class="form-control" id="id_teacher" name="teacher">
+                        <option value="">Sinf rahbarisiz</option>
+                        {% for teacher in teachers %}
+                        <option value="{{ teacher.id }}" 
+                                {% if form.instance.teacher.id == teacher.id or class_obj.teacher.id == teacher.id %}selected{% endif %}>
+                            {{ teacher.get_full_name }} ({{ teacher.username }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">Sinf rahbari (o'qituvchi) ni tanlang</div>
+                    {% if form.teacher.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.teacher.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6">
+                    <label for="id_room" class="form-label">Xona Raqami</label>
+                    <input type="text" class="form-control" id="id_room" name="room" 
+                           value="{{ form.instance.room|default:class_obj.room }}">
+                    <div class="form-text">Masalan: 205, 310, 104</div>
+                    {% if form.room.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.room.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6">
+                    <label for="id_schedule" class="form-label">Dars Jadvali</label>
+                    <input type="text" class="form-control" id="id_schedule" name="schedule" 
+                           value="{{ form.instance.schedule|default:class_obj.schedule }}">
+                    <div class="form-text">Masalan: Dushanba-Juma 8:00-13:00</div>
+                    {% if form.schedule.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.schedule.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Sinf statistikasi -->
+                <div class="col-12">
+                    <h4 class="section-title mt-4">Sinf Statistikasi</h4>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>{{ class_obj.students.count }}</h3>
+                                <p>O'quvchilar</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-book"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>{{ class_obj.subjects.count }}</h3>
+                                <p>Fanlar</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-calendar-check"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3>{{ total_attendance|default:0 }}</h3>
+                                <p>Davomatlar</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Xavfli amallar -->
+                <div class="col-12">
+                    <h4 class="section-title mt-4 text-danger">Xavfli Amallar</h4>
+                    <div class="alert alert-warning">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-exclamation-triangle me-3 fs-4"></i>
+                            <div>
+                                <h5>Diqqat!</h5>
+                                <p class="mb-2">Quyidagi amallar sinfga bog'liq barcha ma'lumotlarni o'chirib yuborishi mumkin:</p>
+                                <div class="danger-actions">
+                                    <a href="{% url 'delete_class' class_obj.id %}" class="btn btn-outline-danger btn-sm" 
+                                       onclick="return confirm('{{ class_obj.name }} sinfini oʻchirishni tasdiqlaysizmi? Bu bilan sinfga tegishli barcha davomat maʼlumotlari, o\'quvchilar va fanlar aloqalari ham oʻchiriladi.')">
+                                        <i class="fas fa-trash"></i> Sinfni o'chirish
+                                    </a>
+                                    <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#archiveModal">
+                                        <i class="fas fa-archive"></i> Arxivlash
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form validation errorlar -->
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger mt-4">
+                <h5>Xatoliklar:</h5>
+                <ul class="mb-0">
+                    {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Amallar -->
+            <div class="form-actions mt-5">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-save"></i> O'zgarishlarni Saqlash
+                </button>
+                <a href="{% url 'manage_classes' %}" class="btn btn-secondary btn-lg">
+                    <i class="fas fa-times"></i> Bekor Qilish
+                </a>
+                <a href="{% url 'manage_classes' %}" class="btn btn-outline-primary btn-lg">
+                    <i class="fas fa-list"></i> Barcha Sinflar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Archive Modal -->
+<div class="modal fade" id="archiveModal" tabindex="-1" aria-labelledby="archiveModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="archiveModalLabel">Sinfni Arxivlash</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Sinfni arxivlash uni faol sinflar ro'yxatidan olib tashlaydi, lekin ma'lumotlarni saqlab qoladi.
+                </div>
+                <p><strong>{{ class_obj.name }}</strong> sinfini arxivlashni tasdiqlaysizmi?</p>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="archiveStudents">
+                    <label class="form-check-label" for="archiveStudents">
+                        O'quvchilarni ham arxivlash
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bekor qilish</button>
+                <button type="button" class="btn btn-warning" id="confirmArchive">
+                    <i class="fas fa-archive"></i> Arxivlash
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Form validation
+document.addEventListener('DOMContentLoaded', function() {
+    const forms = document.querySelectorAll('.needs-validation');
+    Array.from(forms).forEach(form => {
+        form.addEventListener('submit', event => {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        }, false);
+    });
+
+    // Archive modal
+    const confirmArchiveBtn = document.getElementById('confirmArchive');
+    if (confirmArchiveBtn) {
+        confirmArchiveBtn.addEventListener('click', function() {
+            const archiveStudents = document.getElementById('archiveStudents').checked;
+            if (confirm('Sinfni arxivlashni tasdiqlaysizmi?')) {
+                // Bu yerda arxivlash API chaqiruvi bo'lishi mumkin
+                // Hozircha faqat ogohlantirish
+                alert('Arxivlash funksiyasi hozircha ishga tushirilmagan. Iltimos, keyinroq urinib ko\'ring.');
+            }
+        });
+    }
+
+    // Auto-save notification
+    let autoSaveTimer;
+    const form = document.querySelector('form');
+    
+    form.addEventListener('change', function() {
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(function() {
+            // O'zgarishlarni saqlashni bildiruvchi xabar
+            const saveNotification = document.createElement('div');
+            saveNotification.className = 'alert alert-info alert-dismissible fade show position-fixed bottom-0 end-0 m-3';
+            saveNotification.style.zIndex = '1060';
+            saveNotification.innerHTML = `
+                <i class="fas fa-save me-2"></i>
+                <span>O'zgarishlarni saqlash uchun "Saqlash" tugmasini bosing</span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(saveNotification);
+            
+            // 5 soniyadan so'ng xabarni olib tashlash
+            setTimeout(() => {
+                if (saveNotification.parentNode) {
+                    saveNotification.remove();
+                }
+            }, 5000);
+        }, 3000); // 3 soniya kutish
+    });
+
+    // Form yopilganda timer ni tozalash
+    window.addEventListener('beforeunload', function() {
+        clearTimeout(autoSaveTimer);
+    });
+});
+</script>
+
+<style>
+/* Custom styles for edit_class.html */
+.section-title {
+    font-size: 1.2rem;
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.section-title.text-danger {
+    border-bottom-color: #e74c3c;
+    color: #e74c3c;
+}
+
+.class-info {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid #dee2e6;
+}
+
+.info-item {
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.info-label {
+    font-weight: 600;
+    color: #2c3e50;
+    min-width: 120px;
+}
+
+.info-value {
+    color: #34495e;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-start;
+    gap: 1rem;
+    border-top: 1px solid #dee2e6;
+    padding-top: 2rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+}
+
+.stat-info h3 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.stat-info p {
+    margin: 0;
+    color: #7f8c8d;
+    font-size: 14px;
+}
+
+.danger-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
+    color: #856404;
+}
+
+.alert-warning h5 {
+    color: #856404;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .form-actions .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .danger-actions {
+        flex-direction: column;
+    }
+    
+    .info-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .info-label {
+        margin-bottom: 5px;
+    }
+}
+
+/* Form control styling */
+.form-control:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
+.form-control.is-invalid {
+    border-color: #e74c3c;
+}
+
+.form-control.is-valid {
+    border-color: #2ecc71;
+}
+
+/* Modal styling */
+.modal-content {
+    border-radius: 10px;
+    border: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+    color: white;
+    border-radius: 10px 10px 0 0;
+}
+
+.modal-header .btn-close {
+    filter: invert(1);
+}
+</style>
+{% endblock %}

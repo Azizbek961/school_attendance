@@ -1,0 +1,175 @@
+{% extends 'attendance/base_admin.html' %}
+
+{% block title %}Foydalanuvchilarni Boshqarish - SAMO School{% endblock %}
+{% block page_title %}Foydalanuvchilarni Boshqarish{% endblock %}
+{% block page_subtitle %}Barcha foydalanuvchilarni ko'rish va boshqarish{% endblock %}
+
+{% block content %}
+<div class="dashboard-card">
+    <div class="card-header">
+        <h3>Barcha Foydalanuvchilar</h3>
+        <a href="{% url 'add_user' %}" class="btn btn-primary">
+            <i class="fas fa-user-plus"></i> Yangi foydalanuvchi
+        </a>
+    </div>
+
+    <div class="card-body">
+        <!-- Search and Filter -->
+        <div class="search-filter-bar">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" name="search" value="{{ search }}" placeholder="Foydalanuvchi qidirish...">
+                    </div>
+                </div>
+
+                <div class="col-md-2">
+                    <select class="filter-select" name="role">
+                        <option value="">Barcha turlar</option>
+                        <option value="student" {% if role_filter == 'student' %}selected{% endif %}>O'quvchi</option>
+                        <option value="teacher" {% if role_filter == 'teacher' %}selected{% endif %}>O'qituvchi</option>
+                        <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Admin</option>
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <select class="filter-select" name="status">
+                        <option value="">Barcha holatlar</option>
+                        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Faol</option>
+                        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Nofaol</option>
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <select class="filter-select" name="class">
+                        <option value="">Barcha sinflar</option>
+                        {% for class in classes %}
+                        <option value="{{ class.name }}" {% if class_filter == class.name %}selected{% endif %}>
+                            {{ class.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary">Qidirish</button>
+                    <a href="{% url 'manage_users' %}" class="btn btn-secondary">Tozalash</a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Users Table -->
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Foydalanuvchi</th>
+                        <th>Username</th>
+                        <th>Roli</th>
+                        <th>Sinf</th>
+                        <th>Telefon</th>
+                        <th>Holat</th>
+                        <th>Amallar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for profile in users %}
+                    <tr>
+                        <td>{{ profile.user.id }}</td>
+                        <td>
+                            <div class="user-cell">
+                                <div class="user-avatar {{ profile.role }}">
+                                    {{ profile.user.first_name|first|upper }}{{ profile.user.last_name|first|upper }}
+                                </div>
+                                <div class="user-info">
+                                    <h4>{{ profile.user.get_full_name }}</h4>
+                                    <p>{{ profile.user.email|default:"Email yo'q" }}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ profile.user.username }}</td>
+                        <td>
+                            {% if profile.role == 'student' %}
+                                <span class="badge bg-primary">O'quvchi</span>
+                            {% elif profile.role == 'teacher' %}
+                                <span class="badge bg-success">O'qituvchi</span>
+                            {% else %}
+                                <span class="badge bg-danger">Admin</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if profile.student_class %}
+                                {{ profile.student_class.name }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>{{ profile.phone|default:"-" }}</td>
+                        <td>
+                            {% if profile.user.is_active %}
+                                <span class="status-badge status-active">Faol</span>
+                            {% else %}
+                                <span class="status-badge status-inactive">Nofaol</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{% url 'edit_user' profile.user.id %}" class="action-btn-small edit-btn">
+                                    <i class="fas fa-edit"></i> Tahrirlash
+                                </a>
+                                <button onclick="confirmDelete({{ profile.user.id }})" class="action-btn-small delete-btn">
+                                    <i class="fas fa-trash"></i> O'chirish
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center">Foydalanuvchilar topilmadi</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if users.has_other_pages %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if users.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ users.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">&laquo;</a>
+                </li>
+                {% endif %}
+
+                {% for i in users.paginator.page_range %}
+                {% if users.number == i %}
+                <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                {% else %}
+                <li class="page-item"><a class="page-link" href="?page={{ i }}{% if search %}&search={{ search }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">{{ i }}</a></li>
+                {% endif %}
+                {% endfor %}
+
+                {% if users.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ users.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">&raquo;</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmDelete(userId) {
+    if (confirm("Bu foydalanuvchini o'chirishni tasdiqlaysizmi?")) {
+        window.location.href = "{% url 'delete_user' 0 %}".replace('0', userId);
+    }
+}
+</script>
+{% endblock %}

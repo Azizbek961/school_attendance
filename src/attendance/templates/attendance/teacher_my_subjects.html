@@ -1,0 +1,747 @@
+{% extends 'attendance/base.html' %}
+
+{% block title %}Mening Fanlarim - SAMO School{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Sarlavha -->
+    <div class="dashboard-header">
+        <div class="welcome-section">
+            <h1>Mening Fanlarim</h1>
+            <p>O'qituvchi: {{ request.user.get_full_name }}</p>
+        </div>
+        <div class="header-actions">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Fan qidirish..." id="subjectSearch" onkeyup="searchSubjects()">
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistika -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon bg-primary">
+                <i class="fas fa-book"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ my_subjects.count }}</h3>
+                <p>Jami fanlar</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon bg-success">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ total_classes }}</h3>
+                <p>O'qitiladigan sinflar</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon bg-warning">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ total_hours_per_week }}</h3>
+                <p>Soat/hafta</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon bg-info">
+                <i class="fas fa-calendar-alt"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ today_lessons|default:"0" }}</h3>
+                <p>Bugungi darslar</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fanlar jadvali -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-list"></i> Barcha Fanlar</h3>
+            <div class="filter-buttons">
+                <button class="btn btn-sm btn-outline-primary active" onclick="filterSubjects('all')">
+                    Hammasi
+                </button>
+                <button class="btn btn-sm btn-outline-primary" onclick="filterSubjects('active')">
+                    Faol
+                </button>
+                <button class="btn btn-sm btn-outline-primary" onclick="filterSubjects('many_classes')">
+                    Ko'p sinfli
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if my_subjects %}
+            <div class="table-responsive">
+                <table class="data-table" id="subjectsTable">
+                    <thead>
+                        <tr>
+                            <th>Fan Nomi</th>
+                            <th>Sinflar</th>
+                            <th>Soat/Hafta</th>
+                            <th>Jadval</th>
+                            <th>O'quvchilar</th>
+                            <th>So'nggi davomat</th>
+                            <th>Amallar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for subject in my_subjects %}
+                        <tr class="subject-row"
+                            data-classes="{{ subject.classes.count }}"
+                            data-active="true">
+                            <td>
+                                <div class="subject-cell">
+                                    <div class="subject-icon-small">
+                                        <i class="fas fa-book-open"></i>
+                                    </div>
+                                    <div class="subject-info-small">
+                                        <h5>{{ subject.name }}</h5>
+                                        <small>ID: {{ subject.id }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="classes-badges">
+                                    {% for class in subject.classes.all|slice:":3" %}
+                                    <span class="badge bg-secondary">{{ class.name }}</span>
+                                    {% endfor %}
+                                    {% if subject.classes.count > 3 %}
+                                    <span class="badge bg-light text-dark">+{{ subject.classes.count|add:"-3" }}</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="hours-badge">{{ subject.lessons_per_week }}</span>
+                            </td>
+                            <td>
+                                {% if subject.schedule %}
+                                <span class="schedule-info" data-bs-toggle="tooltip" title="{{ subject.schedule }}">
+                                    {{ subject.schedule|truncatechars:20 }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">Ko'rsatilmagan</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% with total_students=subject.total_students %}
+                                <span class="student-count">{{ total_students|default:"0" }}</span>
+                                {% endwith %}
+                            </td>
+                            <td>
+                                {% with last_attendance=subject.last_attendance %}
+                                {% if last_attendance %}
+                                <div class="last-attendance">
+                                    <span>{{ last_attendance.date|date:"d.m.Y" }}</span>
+                                    <small>{{ last_attendance.get_status_display }}</small>
+                                </div>
+                                {% else %}
+                                <span class="text-muted">Yo'q</span>
+                                {% endif %}
+                                {% endwith %}
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn btn-sm btn-outline-primary"
+                                            onclick="viewSubjectDetails({{ subject.id }})">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-success"
+                                            onclick="takeAttendanceForSubject({{ subject.id }})">
+                                        <i class="fas fa-clipboard-check"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-info"
+                                            onclick="viewSubjectReports({{ subject.id }})">
+                                        <i class="fas fa-chart-bar"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-book fa-3x"></i>
+                <h4>Fanlar topilmadi</h4>
+                <p>Sizga hali fanlar biriktirilmagan</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Fan ma'lumotlari modal oynasi -->
+    <div class="modal fade" id="subjectDetailsModal" tabindex="-1" aria-labelledby="subjectDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="subjectDetailsModalLabel">Fan Ma'lumotlari</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="subjectDetailsContent">
+                    <!-- Fan ma'lumotlari bu yerda yuklanadi -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Fan qidirish
+function searchSubjects() {
+    const input = document.getElementById('subjectSearch');
+    const filter = input.value.toLowerCase();
+    const rows = document.querySelectorAll('#subjectsTable tbody tr');
+
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (text.includes(filter)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+// Fanlarni filtrlash
+function filterSubjects(type) {
+    const rows = document.querySelectorAll('.subject-row');
+    const buttons = document.querySelectorAll('.filter-buttons .btn');
+
+    // Tugmalarni faollashtirish
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    rows.forEach(row => {
+        switch(type) {
+            case 'all':
+                row.style.display = '';
+                break;
+            case 'active':
+                row.style.display = '';
+                break;
+            case 'many_classes':
+                const classes = parseInt(row.getAttribute('data-classes'));
+                if (classes >= 3) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+                break;
+        }
+    });
+}
+
+// Fan ma'lumotlarini ko'rish
+function viewSubjectDetails(subjectId) {
+    fetch(`/teacher/subject/${subjectId}/details/`)
+        .then(response => response.json())
+        .then(data => {
+            const modalContent = document.getElementById('subjectDetailsContent');
+            modalContent.innerHTML = `
+                <div class="subject-details-modal">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h4>${data.name}</h4>
+                            <div class="subject-meta">
+                                <span class="badge bg-primary">ID: ${data.id}</span>
+                                <span class="badge bg-success">${data.lessons_per_week} soat/hafta</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="subject-stats">
+                                <div class="stat-item">
+                                    <i class="fas fa-users"></i>
+                                    <span>${data.total_students} o'quvchi</span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="fas fa-school"></i>
+                                    <span>${data.classes_count} sinf</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${data.schedule ? `
+                    <div class="mb-4">
+                        <h5>Dars Jadvali</h5>
+                        <div class="schedule-box">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>${data.schedule}</span>
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <div class="mb-4">
+                        <h5>O'qitiladigan Sinflar</h5>
+                        <div class="classes-grid">
+                            ${data.classes.map(cls => `
+                                <div class="class-card">
+                                    <div class="class-icon">
+                                        <i class="fas fa-chalkboard-teacher"></i>
+                                    </div>
+                                    <div class="class-info">
+                                        <h6>${cls.name}</h6>
+                                        <small>${cls.student_count} o'quvchi</small>
+                                        <div class="class-actions">
+                                            <button class="btn btn-sm btn-outline-primary"
+                                                    onclick="takeAttendanceForClass(${cls.id}, ${subjectId})">
+                                                Davomat
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-secondary"
+                                                    onclick="viewClassAttendance(${cls.id}, ${subjectId})">
+                                                Tarix
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="attendance-summary">
+                        <h5>Davomat Statistikasi</h5>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="attendance-stat">
+                                    <span class="stat-label">Umumiy davomat:</span>
+                                    <span class="stat-value">${data.attendance_stats.total}</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="attendance-stat">
+                                    <span class="stat-label">Borlar:</span>
+                                    <span class="stat-value text-success">${data.attendance_stats.present}</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="attendance-stat">
+                                    <span class="stat-label">Yo'qlar:</span>
+                                    <span class="stat-value text-danger">${data.attendance_stats.absent}</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="attendance-stat">
+                                    <span class="stat-label">Foiz:</span>
+                                    <span class="stat-value text-primary">${data.attendance_stats.percentage}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const modal = new bootstrap.Modal(document.getElementById('subjectDetailsModal'));
+            modal.show();
+
+            // Tooltip larni faollashtirish
+            const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+            tooltips.forEach(el => new bootstrap.Tooltip(el));
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Fan maʼlumotlarini yuklashda xatolik');
+        });
+}
+
+// Fan uchun davomat olish
+function takeAttendanceForSubject(subjectId) {
+    // AJAX orqali sinflar ro'yxatini olish
+    fetch(`/teacher/subject/${subjectId}/classes/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.classes && data.classes.length > 0) {
+                // Agar faqat bitta sinf bo'lsa
+                if (data.classes.length === 1) {
+                    window.location.href = `/teacher/take-attendance/${data.classes[0].id}/${subjectId}/`;
+                } else {
+                    // Ko'p sinf bo'lsa, sinf tanlash modalini ko'rsatish
+                    showClassSelectionModal(data.classes, subjectId);
+                }
+            } else {
+                alert('Bu fan uchun sinflar topilmadi');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Maʼlumotlar yuklanmadi');
+        });
+}
+
+// Sinf tanlash modalini ko'rsatish
+function showClassSelectionModal(classes, subjectId) {
+    let html = '<h6>Davomat olish uchun sinfni tanlang:</h6><div class="classes-selection">';
+
+    classes.forEach(cls => {
+        html += `
+            <div class="class-option" onclick="window.location.href='/teacher/take-attendance/${cls.id}/${subjectId}/'">
+                <div class="class-icon">
+                    <i class="fas fa-school"></i>
+                </div>
+                <div class="class-info">
+                    <h5>${cls.name}</h5>
+                    <p>${cls.student_count} o'quvchi</p>
+                </div>
+                <i class="fas fa-chevron-right"></i>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+
+    // Modal kontentini o'zgartirish
+    document.getElementById('subjectDetailsContent').innerHTML = html;
+    const modal = new bootstrap.Modal(document.getElementById('subjectDetailsModal'));
+    modal.show();
+}
+
+// Fan hisobotlarini ko'rish
+function viewSubjectReports(subjectId) {
+    window.location.href = `/teacher/reports/?subject=${subjectId}`;
+}
+
+// Sinf davomat tarixini ko'rish
+function viewClassAttendance(classId, subjectId) {
+    window.location.href = `/teacher/attendance-history/?class=${classId}&subject=${subjectId}`;
+}
+
+// Sahifa yuklanganda tooltip larni faollashtirish
+document.addEventListener('DOMContentLoaded', function() {
+    const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    tooltips.forEach(el => new bootstrap.Tooltip(el));
+});
+</script>
+
+<style>
+/* Subject My Subjects uchun maxsus stillar */
+.search-box {
+    position: relative;
+    width: 300px;
+}
+
+.search-box i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #7f8c8d;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 10px 15px 10px 40px;
+    border: 2px solid #dee2e6;
+    border-radius: 25px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.search-box input:focus {
+    outline: none;
+    border-color: #9b59b6;
+    box-shadow: 0 0 0 3px rgba(155, 89, 182, 0.1);
+}
+
+.filter-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.subject-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.subject-icon-small {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+}
+
+.subject-info-small h5 {
+    margin: 0;
+    font-size: 14px;
+    color: #2c3e50;
+}
+
+.subject-info-small small {
+    color: #7f8c8d;
+    font-size: 12px;
+}
+
+.classes-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.hours-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background: #e8f4fd;
+    color: #3498db;
+    border-radius: 15px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.schedule-info {
+    cursor: help;
+    display: inline-block;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.student-count {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 16px;
+}
+
+.last-attendance {
+    display: flex;
+    flex-direction: column;
+}
+
+.last-attendance span {
+    font-size: 13px;
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+.last-attendance small {
+    font-size: 11px;
+    color: #7f8c8d;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.action-buttons .btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+/* Modal ichidagi stillar */
+.subject-details-modal {
+    padding: 10px;
+}
+
+.subject-meta {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.subject-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.stat-item i {
+    color: #9b59b6;
+    font-size: 18px;
+}
+
+.schedule-box {
+    padding: 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.classes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.class-card {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: all 0.3s ease;
+}
+
+.class-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.class-icon {
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+}
+
+.class-info {
+    flex: 1;
+}
+
+.class-info h6 {
+    margin: 0 0 5px 0;
+    font-size: 14px;
+    color: #2c3e50;
+}
+
+.class-info small {
+    color: #7f8c8d;
+    font-size: 12px;
+}
+
+.class-actions {
+    display: flex;
+    gap: 5px;
+    margin-top: 8px;
+}
+
+.class-actions .btn-sm {
+    padding: 3px 8px;
+    font-size: 11px;
+}
+
+.attendance-summary {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.attendance-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+    background: white;
+    border-radius: 8px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #7f8c8d;
+    margin-bottom: 5px;
+}
+
+.stat-value {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+/* Sinf tanlash modalidagi stillar */
+.classes-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.class-option {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.class-option:hover {
+    background: #e9ecef;
+    border-color: #9b59b6;
+    transform: translateX(5px);
+}
+
+.class-option .class-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+}
+
+.class-option .class-info h5 {
+    margin: 0;
+    font-size: 14px;
+    color: #2c3e50;
+}
+
+.class-option .class-info p {
+    margin: 3px 0 0 0;
+    font-size: 12px;
+    color: #7f8c8d;
+}
+
+.class-option i.fa-chevron-right {
+    margin-left: auto;
+    color: #7f8c8d;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .search-box {
+        width: 100%;
+        margin-top: 10px;
+    }
+
+    .filter-buttons {
+        flex-wrap: wrap;
+        margin-top: 10px;
+    }
+
+    .classes-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+    }
+
+    .stat-item {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,598 @@
+<!-- attendance/templates/attendance/teacher_my_classes.html -->
+{% extends 'attendance/base.html' %}
+
+{% block title %}Mening Sinflarim - SAMO School{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="page-header">
+                <h1 class="h2 mb-2">
+                    <i class="fas fa-school me-2"></i>Mening Sinflarim
+                </h1>
+                <p class="text-muted">Barcha boshqaradigan sinflaringiz va ularning statistikasi</p>
+            </div>
+        </div>
+        <div class="col-auto">
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary" onclick="refreshPage()">
+                    <i class="fas fa-sync-alt"></i> Yangilash
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card border-primary">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-primary">
+                            <i class="fas fa-school"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h3 class="stat-value">{{ total_classes }}</h3>
+                            <p class="stat-label text-muted mb-0">Barcha sinflar</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card border-success">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-success">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h3 class="stat-value">{{ total_students }}</h3>
+                            <p class="stat-label text-muted mb-0">Jami o'quvchilar</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card border-warning">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-warning">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h3 class="stat-value">{{ total_subjects }}</h3>
+                            <p class="stat-label text-muted mb-0">Umumiy fanlar</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card border-info">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stat-icon bg-info">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h3 class="stat-value">
+                                {% now "d" %}
+                            </h3>
+                            <p class="stat-label text-muted mb-0">Bugun</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Classes Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Boshqaradigan sinflaringiz</h5>
+        </div>
+        <div class="card-body">
+            {% if my_classes %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th width="5%">#</th>
+                            <th>Sinf nomi</th>
+                            <th>O'quvchilar soni</th>
+                            <th>Fanlar soni</th>
+                            <th>Bugungi davomat</th>
+                            <th>Umumiy davomat</th>
+                            <th width="20%">Harakatlar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for class in my_classes %}
+                        <tr data-class-id="{{ class.id }}">
+                            <td>{{ forloop.counter }}</td>
+                            <td>
+                                <strong>{{ class.name }}</strong>
+                                {% if class.room %}
+                                <br>
+                                <small class="text-muted">
+                                    <i class="fas fa-door-open me-1"></i>{{ class.room }}
+                                </small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-primary rounded-pill">{{ class.student_count }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-warning rounded-pill">{{ class.subjects_count }}</span>
+                            </td>
+                            <td>
+                                {% if class.today_total > 0 %}
+                                <div class="progress" style="height: 20px;">
+                                    {% with percentage=class.today_present|default:0|floatformat:0 %}
+                                    <div class="progress-bar {% if percentage >= 80 %}bg-success{% elif percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                                         role="progressbar"
+                                         style="width: {{ percentage }}%"
+                                         aria-valuenow="{{ percentage }}"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100">
+                                        {{ class.today_present }}/{{ class.today_total }}
+                                    </div>
+                                    {% endwith %}
+                                </div>
+                                {% else %}
+                                <span class="text-muted">Davomat olinmagan</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="me-2">{{ class.attendance_percentage }}%</div>
+                                    <div class="progress flex-grow-1" style="height: 8px;">
+                                        <div class="progress-bar {% if class.attendance_percentage >= 80 %}bg-success{% elif class.attendance_percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                                             role="progressbar"
+                                             style="width: {{ class.attendance_percentage }}%"
+                                             aria-valuenow="{{ class.attendance_percentage }}"
+                                             aria-valuemin="0"
+                                             aria-valuemax="100">
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-primary"
+                                            onclick="viewClassDetails({{ class.id }})"
+                                            title="Ma'lumotlarni ko'rish">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-success"
+                                            onclick="takeAttendance({{ class.id }})"
+                                            title="Davomat olish">
+                                        <i class="fas fa-clipboard-check"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-info"
+                                            onclick="viewAttendanceHistory({{ class.id }})"
+                                            title="Davomat tarixi">
+                                        <i class="fas fa-history"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-warning"
+                                            onclick="viewStudents({{ class.id }})"
+                                            title="O'quvchilarni ko'rish">
+                                        <i class="fas fa-users"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <div class="empty-state">
+                    <i class="fas fa-school fa-4x text-muted mb-3"></i>
+                    <h5>Sizga hali sinf biriktirilmagan</h5>
+                    <p class="text-muted">Administrator bilan bog'laning</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% if my_classes %}
+        <div class="card-footer text-muted">
+            Jami: {{ my_classes.count }} ta sinf
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Class Details Modal -->
+<div class="modal fade" id="classDetailsModal" tabindex="-1" aria-labelledby="classDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="classDetailsModalLabel">
+                    <i class="fas fa-school me-2"></i>Sinf ma'lumotlari
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="classDetailsContent">
+                <!-- Content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Yopish</button>
+                <button type="button" class="btn btn-primary" id="takeAttendanceBtn" onclick="takeAttendanceFromModal()">
+                    <i class="fas fa-clipboard-check me-1"></i>Davomat olish
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Students Modal -->
+<div class="modal fade" id="studentsModal" tabindex="-1" aria-labelledby="studentsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="studentsModalLabel">
+                    <i class="fas fa-users me-2"></i>O'quvchilar ro'yxati
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="studentsContent">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.stat-card {
+    transition: transform 0.2s;
+    border-left: 4px solid transparent;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0;
+    color: #2c3e50;
+}
+
+.stat-label {
+    font-size: 14px;
+}
+
+.empty-state {
+    color: #6c757d;
+}
+
+.empty-state i {
+    opacity: 0.5;
+}
+
+.table th {
+    font-weight: 600;
+    color: #495057;
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.progress {
+    border-radius: 10px;
+}
+
+.progress-bar {
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+}
+
+.modal-content {
+    border-radius: 15px;
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px 15px 0 0;
+}
+
+.modal-header .btn-close {
+    filter: brightness(0) invert(1);
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentClassId = null;
+
+function refreshPage() {
+    window.location.reload();
+}
+
+function viewClassDetails(classId) {
+    currentClassId = classId;
+
+    // Show loading
+    document.getElementById('classDetailsContent').innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Yuklanmoqda...</span>
+            </div>
+            <p class="mt-2">Ma'lumotlar yuklanmoqda...</p>
+        </div>
+    `;
+
+    // Fetch class details
+    fetch(`/teacher/class/${classId}/details/`)
+        .then(response => response.json())
+        .then(data => {
+            const content = document.getElementById('classDetailsContent');
+            const classInfo = data.class_info;
+
+            content.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="info-card mb-4">
+                            <h6><i class="fas fa-info-circle me-2"></i>Sinf ma'lumotlari</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td width="40%"><strong>Sinf nomi:</strong></td>
+                                    <td>${classInfo.name}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Xona:</strong></td>
+                                    <td>${classInfo.room}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Jadval:</strong></td>
+                                    <td>${classInfo.schedule}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>O'quvchilar soni:</strong></td>
+                                    <td><span class="badge bg-primary">${classInfo.student_count}</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Yaratilgan sana:</strong></td>
+                                    <td>${classInfo.created_at}</td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <div class="info-card mb-4">
+                            <h6><i class="fas fa-chart-pie me-2"></i>Davomat statistikasi</h6>
+                            <div class="stats-grid">
+                                <div class="stat-item">
+                                    <div class="stat-number text-success">${data.attendance_stats.present}</div>
+                                    <div class="stat-label">Qatnashgan</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-number text-danger">${data.attendance_stats.absent}</div>
+                                    <div class="stat-label">Qatnashmagan</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-number text-warning">${data.attendance_stats.late}</div>
+                                    <div class="stat-label">Kech qolgan</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-number text-primary">${data.attendance_stats.percentage}%</div>
+                                    <div class="stat-label">Davomat foizi</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="info-card mb-4">
+                            <h6><i class="fas fa-book me-2"></i>O'qitiladigan fanlar</h6>
+                            ${data.subjects.length > 0 ? `
+                                <div class="list-group">
+                                    ${data.subjects.map(subject => `
+                                        <div class="list-group-item">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <strong>${subject.name}</strong>
+                                                    <div class="text-muted small">
+                                                        ${subject.lessons_per_week} soat/hafta
+                                                        ${subject.schedule ? '• ' + subject.schedule : ''}
+                                                    </div>
+                                                </div>
+                                                <button class="btn btn-sm btn-outline-primary"
+                                                        onclick="takeSubjectAttendance(${classId}, ${subject.id})">
+                                                    Davomat
+                                                </button>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : '<p class="text-muted mb-0">Fanlar yo\'q</p>'}
+                        </div>
+
+                        <div class="info-card">
+                            <h6><i class="fas fa-history me-2"></i>So'nggi davomatlar</h6>
+                            ${data.recent_attendance.length > 0 ? `
+                                <div class="timeline">
+                                    ${data.recent_attendance.map(att => `
+                                        <div class="timeline-item ${att.status_class === 'present' ? 'present' :
+                                                                   att.status_class === 'absent' ? 'absent' : 'late'}">
+                                            <div class="timeline-marker"></div>
+                                            <div class="timeline-content">
+                                                <div class="d-flex justify-content-between">
+                                                    <strong>${att.student_name}</strong>
+                                                    <span class="badge ${att.status_class === 'present' ? 'bg-success' :
+                                                                       att.status_class === 'absent' ? 'bg-danger' : 'bg-warning'}">
+                                                        ${att.status}
+                                                    </span>
+                                                </div>
+                                                <div class="text-muted small">
+                                                    ${att.subject_name} • ${att.date} ${att.time}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : '<p class="text-muted mb-0">Davomatlar yo\'q</p>'}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Update take attendance button
+            document.getElementById('takeAttendanceBtn').setAttribute('onclick', `takeAttendance(${classId})`);
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('classDetailsModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('classDetailsContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Ma'lumotlarni yuklashda xatolik yuz berdi
+                </div>
+            `;
+        });
+}
+
+function takeAttendance(classId) {
+    window.location.href = `/teacher/class/${classId}/take-attendance/`;
+}
+
+function takeSubjectAttendance(classId, subjectId) {
+    window.location.href = `/teacher/class/${classId}/take-attendance/${subjectId}/`;
+}
+
+function takeAttendanceFromModal() {
+    if (currentClassId) {
+        takeAttendance(currentClassId);
+    }
+}
+
+function viewAttendanceHistory(classId) {
+    window.location.href = `/teacher/class/${classId}/attendance/`;
+}
+
+function viewStudents(classId) {
+    // Show loading
+    document.getElementById('studentsContent').innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Yuklanmoqda...</span>
+            </div>
+            <p class="mt-2">O'quvchilar ro'yxati yuklanmoqda...</p>
+        </div>
+    `;
+
+    // Fetch students
+    fetch(`/teacher/class/${classId}/students/`)
+        .then(response => response.json())
+        .then(data => {
+            const content = document.getElementById('studentsContent');
+
+            if (data.students.length > 0) {
+                content.innerHTML = `
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>F.I.Sh</th>
+                                    <th>Telefon</th>
+                                    <th>Davomat foizi</th>
+                                    <th>Qatnashgan</th>
+                                    <th>Jami</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.students.map((student, index) => `
+                                    <tr>
+                                        <td>${index + 1}</td>
+                                        <td>
+                                            <strong>${student.full_name}</strong>
+                                            <br>
+                                            <small class="text-muted">@${student.username}</small>
+                                        </td>
+                                        <td>${student.phone}</td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="me-2">${student.attendance_percentage}%</div>
+                                                <div class="progress flex-grow-1" style="height: 6px;">
+                                                    <div class="progress-bar ${student.attendance_percentage >= 80 ? 'bg-success' :
+                                                                               student.attendance_percentage >= 50 ? 'bg-warning' : 'bg-danger'}"
+                                                         style="width: ${student.attendance_percentage}%">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td><span class="badge bg-success">${student.present_count}</span></td>
+                                        <td><span class="badge bg-primary">${student.total_count}</span></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-muted mt-2">
+                        Jami: ${data.students.length} ta o'quvchi
+                    </div>
+                `;
+            } else {
+                content.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <h5>O'quvchilar topilmadi</h5>
+                        <p class="text-muted">Bu sinfda hali o'quvchilar yo'q</p>
+                    </div>
+                `;
+            }
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('studentsModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('studentsContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    O'quvchilarni yuklashda xatolik yuz berdi
+                </div>
+            `;
+        });
+}
+
+// Auto-refresh page every 5 minutes
+setTimeout(() => {
+    refreshPage();
+}, 300000); // 5 minutes
+</script>
+{% endblock %}

@@ -1,0 +1,410 @@
+{% extends 'attendance/base_admin.html' %}
+
+{% block title %}Yangi Sinf Qo'shish - SAMO School{% endblock %}
+{% block page_title %}Yangi Sinf Qo'shish{% endblock %}
+{% block page_subtitle %}Yangi sinf yarating va tizimga qo'shing{% endblock %}
+
+{% block content %}
+<div class="dashboard-card">
+    <div class="card-header">
+        <h3>Sinf Ma'lumotlari</h3>
+        <a href="{% url 'manage_classes' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Orqaga
+        </a>
+    </div>
+
+    <div class="card-body">
+        <form method="post" class="needs-validation" novalidate>
+            {% csrf_token %}
+
+            {% if messages %}
+            <div class="messages mb-4">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="row g-4">
+                <!-- Asosiy ma'lumotlar -->
+                <div class="col-12">
+                    <h4 class="section-title">Asosiy Ma'lumotlar</h4>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="id_name" class="form-label">Sinf Nomi *</label>
+                    {{ form.name }}
+                    <div class="form-text">Masalan: 7-A, 8-B, 9-V</div>
+                    {% if form.name.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.name.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6">
+                    <label for="id_teacher" class="form-label">Sinf Rahbari</label>
+                    {{ form.teacher }}
+                    <div class="form-text">Sinf rahbari (o'qituvchi) ni tanlang</div>
+                    {% if form.teacher.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.teacher.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6">
+                    <label for="id_room" class="form-label">Xona Raqami</label>
+                    {{ form.room }}
+                    <div class="form-text">Masalan: 205, 310, 104</div>
+                    {% if form.room.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.room.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-6">
+                    <label for="id_schedule" class="form-label">Dars Jadvali</label>
+                    {{ form.schedule }}
+                    <div class="form-text">Masalan: Dushanba-Juma 8:00-13:00</div>
+                    {% if form.schedule.errors %}
+                    <div class="invalid-feedback d-block">
+                        {{ form.schedule.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Qo'shimcha ma'lumotlar -->
+                <div class="col-12">
+                    <h4 class="section-title mt-4">Qo'shimcha Ma'lumotlar</h4>
+                </div>
+
+                <div class="col-12">
+                    <div class="info-box">
+                        <div class="info-icon">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <div class="info-content">
+                            <h5>Eslatmalar:</h5>
+                            <ul class="mb-0">
+                                <li>Sinf rahbari sifatida faqat o'qituvchi roli bo'lgan foydalanuvchilarni tanlashingiz mumkin</li>
+                                <li>Sinf nomi takrorlanmas bo'lishi kerak</li>
+                                <li>Sinf yaratilgandan so'ng, unga o'quvchilar va fanlar qo'shishingiz mumkin</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form validation errorlar -->
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger mt-4">
+                <h5>Xatoliklar:</h5>
+                <ul class="mb-0">
+                    {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Amallar -->
+            <div class="form-actions mt-5">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-save"></i> Sinfni Saqlash
+                </button>
+                <a href="{% url 'manage_classes' %}" class="btn btn-secondary btn-lg">
+                    <i class="fas fa-times"></i> Bekor Qilish
+                </a>
+                <button type="button" class="btn btn-outline-primary btn-lg" id="previewBtn">
+                    <i class="fas fa-eye"></i> Ko'rish
+                </button>
+            </div>
+        </form>
+
+        <!-- Sinf ko'rinishi (preview) -->
+        <div class="preview-section mt-5" id="previewSection" style="display: none;">
+            <h4 class="section-title">Sinf Ko'rinishi</h4>
+            <div class="preview-card">
+                <div class="preview-header">
+                    <h5 id="previewName">Sinf Nomi</h5>
+                    <span class="badge bg-info" id="previewStatus">Yangi</span>
+                </div>
+                <div class="preview-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="preview-item">
+                                <span class="preview-label">Sinf Rahbari:</span>
+                                <span class="preview-value" id="previewTeacher">Tanlanmagan</span>
+                            </div>
+                            <div class="preview-item">
+                                <span class="preview-label">Xona:</span>
+                                <span class="preview-value" id="previewRoom">Ko'rsatilmagan</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="preview-item">
+                                <span class="preview-label">Dars Jadvali:</span>
+                                <span class="preview-value" id="previewSchedule">Ko'rsatilmagan</span>
+                            </div>
+                            <div class="preview-item">
+                                <span class="preview-label">O'quvchilar:</span>
+                                <span class="preview-value">0 ta</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="preview-item full-width">
+                        <span class="preview-label">Holat:</span>
+                        <span class="preview-value">Faol</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Form maydonlarini real vaqtda yangilash
+function updatePreview() {
+    const nameField = document.getElementById('id_name');
+    const teacherField = document.getElementById('id_teacher');
+    const roomField = document.getElementById('id_room');
+    const scheduleField = document.getElementById('id_schedule');
+
+    // Ko'rish uchun yangilash
+    document.getElementById('previewName').textContent = nameField.value || 'Sinf Nomi';
+
+    if (teacherField.value) {
+        const selectedOption = teacherField.options[teacherField.selectedIndex];
+        document.getElementById('previewTeacher').textContent = selectedOption.text;
+    } else {
+        document.getElementById('previewTeacher').textContent = 'Tanlanmagan';
+    }
+
+    document.getElementById('previewRoom').textContent = roomField.value || 'Ko\'rsatilmagan';
+    document.getElementById('previewSchedule').textContent = scheduleField.value || 'Ko\'rsatilmagan';
+}
+
+// Form maydonlariga eshitish qo'shish
+document.addEventListener('DOMContentLoaded', function() {
+    // Form maydonlarini olish
+    const formFields = ['id_name', 'id_teacher', 'id_room', 'id_schedule'];
+
+    formFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.addEventListener('input', updatePreview);
+            field.addEventListener('change', updatePreview);
+        }
+    });
+
+    // Ko'rish tugmasi
+    const previewBtn = document.getElementById('previewBtn');
+    const previewSection = document.getElementById('previewSection');
+
+    if (previewBtn && previewSection) {
+        previewBtn.addEventListener('click', function() {
+            updatePreview(); // Avval ma'lumotlarni yangilash
+            if (previewSection.style.display === 'none') {
+                previewSection.style.display = 'block';
+                previewBtn.innerHTML = '<i class="fas fa-eye-slash"></i> Yashirish';
+                previewBtn.classList.remove('btn-outline-primary');
+                previewBtn.classList.add('btn-primary');
+            } else {
+                previewSection.style.display = 'none';
+                previewBtn.innerHTML = '<i class="fas fa-eye"></i> Ko\'rish';
+                previewBtn.classList.remove('btn-primary');
+                previewBtn.classList.add('btn-outline-primary');
+            }
+        });
+    }
+
+    // Form validation
+    const forms = document.querySelectorAll('.needs-validation');
+    Array.from(forms).forEach(form => {
+        form.addEventListener('submit', event => {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        }, false);
+    });
+
+    // Avvalgi ko'rinishni yangilash
+    updatePreview();
+});
+
+// Form maydonlariga Bootstrap class qo'shish
+document.addEventListener('DOMContentLoaded', function() {
+    // Barcha input, select va textarea elementlariga form-control class qo'shish
+    const formElements = document.querySelectorAll('input, select, textarea');
+    formElements.forEach(element => {
+        if (element.type !== 'checkbox' && element.type !== 'radio' && !element.classList.contains('form-control')) {
+            element.classList.add('form-control');
+        }
+    });
+});
+</script>
+
+<style>
+/* Custom styles for add_class.html */
+.section-title {
+    font-size: 1.2rem;
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-start;
+    gap: 1rem;
+    border-top: 1px solid #dee2e6;
+    padding-top: 2rem;
+}
+
+.info-box {
+    background: #e8f4fd;
+    border: 1px solid #3498db;
+    border-radius: 8px;
+    padding: 15px;
+    display: flex;
+    gap: 15px;
+}
+
+.info-icon {
+    color: #3498db;
+    font-size: 1.5rem;
+}
+
+.info-content h5 {
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.info-content ul {
+    margin-left: 20px;
+    color: #34495e;
+}
+
+.info-content li {
+    margin-bottom: 5px;
+}
+
+/* Preview section */
+.preview-section {
+    animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.preview-card {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.preview-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.preview-header h5 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.preview-header .badge {
+    font-size: 0.8rem;
+    padding: 5px 10px;
+}
+
+.preview-body {
+    padding: 20px;
+}
+
+.preview-item {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+}
+
+.preview-item.full-width {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.preview-label {
+    font-weight: 600;
+    color: #2c3e50;
+    min-width: 120px;
+}
+
+.preview-value {
+    color: #34495e;
+    flex: 1;
+}
+
+.preview-item.full-width .preview-value {
+    margin-top: 5px;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    width: 100%;
+}
+
+/* Form control styling */
+.form-control:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
+.form-control.is-invalid {
+    border-color: #e74c3c;
+}
+
+.form-control.is-valid {
+    border-color: #2ecc71;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .form-actions .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+
+    .preview-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .preview-label {
+        margin-bottom: 5px;
+    }
+}
+</style>
+{% endblock %}
