@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Davomat hisoboti - {{ student.get_full_name }}</title>
+    <style>
+        body {
+            font-family: 'DejaVu Sans', Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .report-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+        }
+
+        .report-header h1 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+            color: #333;
+        }
+
+        .student-info {
+            margin-bottom: 20px;
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+        }
+
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+
+        .report-table th {
+            background-color: #333;
+            color: white;
+            padding: 10px;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        .report-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .report-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .status-present { color: #28a745; font-weight: bold; }
+        .status-absent { color: #dc3545; font-weight: bold; }
+        .status-late { color: #ffc107; font-weight: bold; }
+        .status-excused { color: #6c757d; font-weight: bold; }
+
+        .summary {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .summary h3 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+        }
+
+        @media print {
+            body {
+                padding: 0;
+            }
+
+            .no-print {
+                display: none;
+            }
+
+            .report-table {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="report-header">
+        <h1>DAVOMAT HISOBOTI</h1>
+        <p>SAMO International School</p>
+        <p>Yaratilgan: {{ generated_at|date:"d.m.Y H:i" }}</p>
+    </div>
+
+    <div class="student-info">
+        <h3>O'quvchi ma'lumotlari</h3>
+        <p><strong>Ism:</strong> {{ student.get_full_name }}</p>
+        <p><strong>Login:</strong> {{ student.username }}</p>
+        <p><strong>Sinf:</strong> {{ student.profile.student_class.name|default:"Sinf yo'q" }}</p>
+        {% if date_from or date_to %}
+        <p><strong>Sana oralig'i:</strong>
+            {{ date_from|default:"Barcha" }} - {{ date_to|default:"Barcha" }}
+        </p>
+        {% endif %}
+    </div>
+
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th>Sana</th>
+                <th>Fan</th>
+                <th>Sinf</th>
+                <th>O'qituvchi</th>
+                <th>Holat</th>
+                <th>Izoh</th>
+                <th>Vaqt</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in attendance_records %}
+            <tr>
+                <td>{{ record.date|date:"d.m.Y" }}</td>
+                <td>{{ record.subject.name }}</td>
+                <td>{{ record.class_obj.name }}</td>
+                <td>{{ record.teacher.get_full_name }}</td>
+                <td class="status-{{ record.status }}">
+                    {% if record.status == 'present' %}
+                        Qatnashdi
+                    {% elif record.status == 'absent' %}
+                        Qatnashmadi
+                    {% elif record.status == 'late' %}
+                        Kechikdi
+                    {% elif record.status == 'excused' %}
+                        Sababli
+                    {% endif %}
+                </td>
+                <td>{{ record.notes|default:"-" }}</td>
+                <td>{{ record.created_at|time:"H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align: center;">Davomat yozuvlari mavjud emas</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="summary">
+        <h3>Statistika</h3>
+        <p><strong>Jami yozuvlar:</strong> {{ attendance_records.count }}</p>
+        <p><strong>Qatnashgan:</strong> {{ attendance_records|filter_status:"present"|length }}</p>
+        <p><strong>Qatnashmagan:</strong> {{ attendance_records|filter_status:"absent"|length }}</p>
+        <p><strong>Kechikkan:</strong> {{ attendance_records|filter_status:"late"|length }}</p>
+        <p><strong>Sababli:</strong> {{ attendance_records|filter_status:"excused"|length }}</p>
+
+        {% with total=attendance_records.count present=attendance_records|filter_status:"present"|length %}
+        {% if total > 0 %}
+        <p><strong>Davomat foizi:</strong> {{ present|floatformat:1 }} / {{ total|floatformat:1 }} = {{ present|divide:total|multiply:100|floatformat:1 }}%</p>
+        {% endif %}
+        {% endwith %}
+    </div>
+
+    <div class="footer">
+        <p>Ushbu hisobot SAMO Davomat Tizimi tomonidan avtomatik yaratildi.</p>
+        <p>© {% now "Y" %} SAMO International School. Barcha huquqlar himoyalangan.</p>
+    </div>
+
+    <script>
+        // Auto print when opened
+        window.onload = function() {
+            setTimeout(function() {
+                window.print();
+            }, 500);
+        };
+    </script>
+</body>
+</html>

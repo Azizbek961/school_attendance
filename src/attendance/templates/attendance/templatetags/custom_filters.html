@@ -1,0 +1,26 @@
+from django import template
+
+register = template.Library()
+
+@register.filter
+def filter_status(queryset, status):
+    """Filter attendance records by status"""
+    if hasattr(queryset, 'filter'):
+        return queryset.filter(status=status)
+    return [item for item in queryset if getattr(item, 'status', None) == status]
+
+@register.filter
+def divide(value, arg):
+    """Divide value by arg"""
+    try:
+        return float(value) / float(arg)
+    except (ValueError, ZeroDivisionError):
+        return 0
+
+@register.filter
+def multiply(value, arg):
+    """Multiply value by arg"""
+    try:
+        return float(value) * float(arg)
+    except ValueError:
+        return 0

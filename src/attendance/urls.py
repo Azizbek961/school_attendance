@@ -107,5 +107,28 @@ urlpatterns = [
     path('teacher/class/<int:class_id>/take-attendance/<int:subject_id>/', views.teacher_take_class_attendance,
          name='teacher_take_class_attendance'),
     path('teacher/edit/attendance/', views.teacher_edit_attendance, name='teacher_edit_attendance'),
+
+    path('student/dashboard/', views.student_dashboard, name='student_dashboard'),
+    path('student/dashboard-data/', views.student_dashboard_data, name='student_dashboard_data'),
+    path('student/subject-performance/', views.student_subject_performance, name='student_subject_performance'),
+    path('student/class-rankings/', views.student_class_rankings, name='student_class_rankings'),
+    path('student/attendance-history/', views.student_attendance_history, name='student_attendance_history'),
+    path('student/statistics/', views.student_statistics, name='student_statistics'),
+    path('student/my-classes/', views.student_my_classes, name='student_my_classes'),
+    path('student/notifications/', views.student_notifications, name='student_notifications'),
+    path('student/settings/', views.student_settings, name='student_settings'),
+    path('student/profile/', views.student_profile, name='student_profile'),
+    path('student/schedule/', views.student_schedule, name='student_schedule'),
+    path('student/tasks/', views.student_tasks, name='student_tasks'),
+    path('student/messages/', views.student_messages, name='student_messages'),
+    path('student/events/', views.student_events, name='student_events'),
+    path('student/reports/', views.student_reports, name='student_reports'),
+
+    # AJAX endpoints for student
+    path('student/attendance-history/data/', views.student_attendance_history_data,
+         name='student_attendance_history_data'),
+    path('student/statistics/data/', views.student_statistics_data, name='student_statistics_data'),
+    path('student/notifications/data/', views.student_notifications_data, name='student_notifications_data'),
+
 ]
 

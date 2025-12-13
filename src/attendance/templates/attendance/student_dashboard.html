@@ -1,0 +1,907 @@
+{% extends 'attendance/student_base.html' %}
+{% load static %}
+
+{% block title %}O'quvchi Paneli - Asosiy sahifa{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Additional styles for dynamic dashboard */
+    .stat-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        padding: 25px;
+        height: 100%;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        border-color: #dee2e6;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 5px;
+        height: 100%;
+        background: linear-gradient(to bottom, var(--primary-color), var(--primary-dark));
+    }
+
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 800;
+        line-height: 1;
+        margin: 15px 0 10px;
+        color: var(--gray-900);
+    }
+
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        color: white;
+    }
+
+    .icon-present { background: linear-gradient(135deg, #28a745, #20c997); }
+    .icon-classes { background: linear-gradient(135deg, #4361ee, #3a0ca3); }
+    .icon-recent { background: linear-gradient(135deg, #ffc107, #fd7e14); }
+    .icon-grade { background: linear-gradient(135deg, #17a2b8, #0dcaf0); }
+
+    .attendance-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        line-height: 1;
+    }
+
+    .badge-present { background-color: rgba(40, 167, 69, 0.15); color: #28a745; }
+    .badge-absent { background-color: rgba(220, 53, 69, 0.15); color: #dc3545; }
+    .badge-late { background-color: rgba(255, 193, 7, 0.15); color: #ffc107; }
+    .badge-excused { background-color: rgba(108, 117, 125, 0.15); color: #6c757d; }
+    .badge-waiting { background-color: rgba(13, 202, 240, 0.15); color: #0dcaf0; }
+    .badge-missed { background-color: rgba(108, 117, 125, 0.15); color: #6c757d; }
+
+    .schedule-item {
+        border-left: 4px solid;
+        padding-left: 15px;
+        margin-bottom: 15px;
+        transition: all 0.3s ease;
+    }
+
+    .schedule-item:hover {
+        transform: translateX(5px);
+        background-color: rgba(0, 0, 0, 0.02);
+    }
+
+    .border-present { border-color: #28a745; }
+    .border-absent { border-color: #dc3545; }
+    .border-late { border-color: #ffc107; }
+    .border-excused { border-color: #6c757d; }
+    .border-waiting { border-color: #0dcaf0; }
+    .border-missed { border-color: #6c757d; }
+
+    .subject-progress {
+        height: 10px;
+        border-radius: 5px;
+        background-color: #e9ecef;
+        overflow: hidden;
+    }
+
+    .progress-bar-success { background: linear-gradient(90deg, #28a745, #20c997); }
+    .progress-bar-info { background: linear-gradient(90deg, #17a2b8, #0dcaf0); }
+    .progress-bar-warning { background: linear-gradient(90deg, #ffc107, #fd7e14); }
+    .progress-bar-danger { background: linear-gradient(90deg, #dc3545, #fd7e14); }
+
+    .ranking-card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 15px;
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+    }
+
+    .ranking-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    .ranking-badge {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 18px;
+        color: white;
+        margin-right: 15px;
+    }
+
+    .rank-1 { background: linear-gradient(135deg, #FFD700, #FFA500); }
+    .rank-2 { background: linear-gradient(135deg, #C0C0C0, #A9A9A9); }
+    .rank-3 { background: linear-gradient(135deg, #CD7F32, #A0522D); }
+    .rank-other { background: linear-gradient(135deg, #4361ee, #3a0ca3); }
+
+    .current-student {
+        background: linear-gradient(135deg, rgba(67, 97, 238, 0.1), rgba(58, 12, 163, 0.1));
+        border: 2px solid #4361ee;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+        width: 100%;
+    }
+
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        border-radius: 10px;
+    }
+
+    .last-updated {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+
+    @media (max-width: 768px) {
+        .stat-number {
+            font-size: 2rem;
+        }
+
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+        }
+
+        .chart-container {
+            height: 250px;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .stat-card {
+            padding: 20px;
+        }
+
+        .stat-number {
+            font-size: 1.75rem;
+        }
+
+        .chart-container {
+            height: 200px;
+        }
+
+        .ranking-badge {
+            width: 35px;
+            height: 35px;
+            font-size: 16px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h1 class="page-title mb-1">Xush kelibsiz, {{ student.get_full_name|default:student.username }}!</h1>
+                <p class="text-muted mb-0">
+                    <i class="fas fa-graduation-cap me-1"></i>
+                    {{ student_class.name|default:"Sinf yo'q" }} sinfi
+                    {% if student_class and student_class.teacher %}
+                        • Sinflar rahbari: {{ student_class.teacher.get_full_name }}
+                    {% endif %}
+                </p>
+            </div>
+            <div class="mt-2 mt-md-0">
+                <span class="badge bg-primary me-2">{{ current_date|date:"d F Y" }}</span>
+                <span class="badge bg-secondary">{{ current_date|date:"l" }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="stat-card">
+            <div class="stat-icon icon-present">
+                <i class="fas fa-user-check"></i>
+            </div>
+            <h2 class="stat-number text-success" id="overallPercentage">{{ my_percentage }}%</h2>
+            <p class="text-muted mb-2">Umumiy davomat foizi</p>
+            <small class="text-muted">{{ present_attendance }}/{{ total_attendance }} dars</small>
+            <div class="mt-3">
+                <select class="form-select form-select-sm w-auto" id="periodSelect" onchange="updateDashboardData()">
+                    <option value="week">Oxirgi hafta</option>
+                    <option value="month">Oxirgi oy</option>
+                    <option value="year">Oxirgi yil</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="stat-card">
+            <div class="stat-icon icon-classes">
+                <i class="fas fa-book-open"></i>
+            </div>
+            <h2 class="stat-number text-primary" id="todayClasses">{{ today_subjects_count }}</h2>
+            <p class="text-muted mb-2">Bugungi darslar</p>
+            <small class="text-muted">{{ today|date:"d.m.Y" }}</small>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="stat-card">
+            <div class="stat-icon icon-recent">
+                <i class="fas fa-clock"></i>
+            </div>
+            <h2 class="stat-number text-warning">{{ recent_attendance_count }}</h2>
+            <p class="text-muted mb-2">Oxirgi davomatlar</p>
+            <small class="text-muted">So'ngi 10 ta yozuv</small>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="stat-card">
+            <div class="stat-icon icon-grade">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <h2 class="stat-number text-info">{{ average_grade }}</h2>
+            <p class="text-muted mb-2">O'rtacha baho</p>
+            <small class="text-muted">Semestr bo'yicha</small>
+        </div>
+    </div>
+</div>
+
+<!-- Charts and Today's Schedule -->
+<div class="row mb-4">
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-area me-2"></i>Davomat statistikasi
+                </h5>
+
+            </div>
+            <div class="card-body position-relative">
+                <div class="loading-overlay d-none" id="chartLoading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Yuklanmoqda...</span>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="attendanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-calendar-day me-2"></i>Bugungi dars jadvali
+                </h5>
+                <span class="badge bg-primary">{{ today|date:"d.m" }}</span>
+            </div>
+            <div class="card-body">
+                <div id="todaySchedule">
+                    {% if today_schedule %}
+                        {% for item in today_schedule %}
+                        <div class="schedule-item border-{{ item.status }}">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <h6 class="mb-0">{{ item.subject }}</h6>
+                                <span class="attendance-badge badge-{{ item.status }}">
+                                    {% if item.status == 'present' %}Qatnashdi
+                                    {% elif item.status == 'absent' %}Qatnashmadi
+                                    {% elif item.status == 'late' %}Kechikdi
+                                    {% elif item.status == 'excused' %}Sababli
+                                    {% elif item.status == 'waiting' %}Kutilmoqda
+                                    {% elif item.status == 'missed' %}O'tkazib yuborildi
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="far fa-clock me-1"></i>{{ item.time_start }}-{{ item.time_end }}
+                                </small>
+                                <small class="text-muted">{{ item.teacher|truncatechars:15 }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                            <h6>Bugun darslar mavjud emas</h6>
+                            <p class="text-muted small">Bugun hech qanday dars rejalashtirilmagan</p>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="text-center mt-3">
+                    <button class="btn btn-outline-primary btn-sm" onclick="refreshTodaySchedule()">
+                        <i class="fas fa-sync-alt me-1"></i>Yangilash
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Attendance and Class Ranking -->
+<div class="row mb-4">
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-history me-2"></i>Oxirgi davomat yozuvlari
+                </h5>
+                <a href="#" class="btn btn-outline-primary btn-sm">Barchasini ko'rish</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Sana</th>
+                                <th>Fan</th>
+                                <th>O'qituvchi</th>
+                                <th>Holat</th>
+                                <th>Izoh</th>
+                                <th>Vaqt</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentAttendance">
+                            {% for record in recent_attendance %}
+                            <tr>
+                                <td>{{ record.date|date:"d.m.Y" }}</td>
+                                <td>{{ record.subject.name }}</td>
+                                <td>{{ record.teacher.get_full_name|default:record.teacher.username }}</td>
+                                <td>
+                                    {% if record.status == 'present' %}
+                                        <span class="attendance-badge badge-present">Qatnashdi</span>
+                                    {% elif record.status == 'absent' %}
+                                        <span class="attendance-badge badge-absent">Qatnashmadi</span>
+                                    {% elif record.status == 'late' %}
+                                        <span class="attendance-badge badge-late">Kechikdi</span>
+                                    {% elif record.status == 'excused' %}
+                                        <span class="attendance-badge badge-excused">Sababli</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ record.notes|default:"-"|truncatechars:20 }}</td>
+                                <td>{{ record.created_at|time:"H:i" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="fas fa-clipboard-list fa-2x mb-3"></i>
+                                        <p>Hozircha davomat yozuvlari mavjud emas</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-trophy me-2"></i>Sinf reytingi
+                </h5>
+                <span class="badge bg-primary">{{ student_class.name|default:"Sinf" }}</span>
+            </div>
+            <div class="card-body">
+                {% if class_ranking %}
+                <div class="text-center mb-4">
+                    <div class="display-4 fw-bold text-primary mb-1">{{ class_ranking.rank }}</div>
+                    <div class="text-muted">{{ class_ranking.total_students }} o'quvchi ichida</div>
+                    <div class="mt-2">
+                        <span class="badge bg-success">{{ class_ranking.percentage }}% davomat</span>
+                    </div>
+                </div>
+
+                <h6 class="mb-3">Sinf yetakchilari:</h6>
+                {% for top_student in class_ranking.top_students %}
+                <div class="ranking-card {% if top_student.student.id == student.id %}current-student{% endif %}">
+                    <div class="d-flex align-items-center">
+                        <div class="ranking-badge rank-{{ forloop.counter }}">
+                            {{ forloop.counter }}
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    {{ top_student.name|truncatechars:20 }}
+                                    {% if top_student.student.id == student.id %}
+                                    <span class="badge bg-primary ms-2">Siz</span>
+                                    {% endif %}
+                                </h6>
+                                <span class="fw-bold">{{ top_student.percentage }}%</span>
+                            </div>
+                            <small class="text-muted">{{ top_student.present }}/{{ top_student.total }} dars</small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h6>Reyting mavjud emas</h6>
+                    <p class="text-muted small">Sinf tayinlanmagan yoki ma'lumotlar yetarli emas</p>
+                </div>
+                {% endif %}
+
+                <div class="text-center mt-3">
+                    <button class="btn btn-outline-primary btn-sm" onclick="loadClassRankings()">
+                        <i class="fas fa-sync-alt me-1"></i>Reytingni yangilash
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Subject Performance -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-book me-2"></i>Fanlar bo'yicha statistikangiz
+                </h5>
+                <div class="dropdown">
+                    <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        {% if subject_stats|length > 0 %} {{ subject_stats|length }} fan {% else %} Fanlar {% endif %}
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="loadAllSubjects()">Barcha fanlar</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="sortSubjectsByPercentage()">Foiz bo'yicha tartiblash</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="sortSubjectsByName()">Nomi bo'yicha tartiblash</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row" id="subjectPerformance">
+                    {% for subject in subject_stats %}
+                    <div class="col-md-6 col-lg-3 mb-4">
+                        <div class="p-3 border rounded h-100">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">{{ subject.name|truncatechars:15 }}</h6>
+                                <span class="badge bg-{{ subject.color }}">{{ subject.percentage }}%</span>
+                            </div>
+                            <small class="text-muted d-block mb-2">{{ subject.teacher|truncatechars:20 }}</small>
+                            <div class="progress subject-progress mb-2">
+                                <div class="progress-bar-{{ subject.color }}" style="width: {{ subject.percentage }}%"></div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">{{ subject.present }}/{{ subject.total }} dars</small>
+                                <small class="text-muted">{{ subject.percentage }}%</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12 text-center py-4">
+                        <i class="fas fa-book fa-3x text-muted mb-3"></i>
+                        <h6>Fanlar mavjud emas</h6>
+                        <p class="text-muted small">Sinf tayinlanmagan yoki fanlar yo'q</p>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if subject_stats|length > 8 %}
+                <div class="text-center mt-3">
+                    <button class="btn btn-outline-primary btn-sm" onclick="loadMoreSubjects()">
+                        <i class="fas fa-chevron-down me-1"></i>Ko'proq fanlarni ko'rish
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Global variables
+    let attendanceChart = null;
+    let currentPeriod = 'week';
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize charts with backend data
+        initializeCharts();
+
+        // Load initial data
+        updateDashboardData();
+
+        // Auto-refresh data every 2 minutes
+        setInterval(updateDashboardData, 2 * 60 * 1000);
+
+        // Setup event listeners
+        setupEventListeners();
+    });
+
+    function initializeCharts() {
+        // Parse chart data from Django template
+        const chartData = JSON.parse('{{ chart_data_json|escapejs }}');
+
+        // 1. Weekly Trend Chart
+        const weeklyCtx = document.getElementById('attendanceChart').getContext('2d');
+        attendanceChart = new Chart(weeklyCtx, {
+            type: 'line',
+            data: {
+                labels: chartData.weekly_trend.labels,
+                datasets: [{
+                    label: 'Davomat foizi (%)',
+                    data: chartData.weekly_trend.data,
+                    backgroundColor: 'rgba(67, 97, 238, 0.1)',
+                    borderColor: 'rgba(67, 97, 238, 1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: 'rgba(67, 97, 238, 1)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `Davomat: ${context.parsed.y}%`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function setupEventListeners() {
+        // Period select change
+        document.getElementById('periodSelect').addEventListener('change', function() {
+            currentPeriod = this.value;
+            updateDashboardData();
+        });
+    }
+
+    async function updateDashboardData() {
+        const loadingOverlay = document.getElementById('chartLoading');
+        const periodSelect = document.getElementById('periodSelect');
+
+        if (loadingOverlay) loadingOverlay.classList.remove('d-none');
+
+        try {
+            const response = await fetch(`{% url 'student_dashboard_data' %}?period=${currentPeriod}`);
+            const data = await response.json();
+
+            if (data.error) {
+                showToast(data.error, 'error');
+                return;
+            }
+
+            // Update overall percentage
+            const overallPercentage = document.getElementById('overallPercentage');
+            if (overallPercentage) {
+                overallPercentage.textContent = `${data.overall_percentage}%`;
+            }
+
+            // Update chart
+            if (attendanceChart) {
+                attendanceChart.data.labels = data.daily_data.map(item => item.day);
+                attendanceChart.data.datasets[0].data = data.daily_data.map(item => item.percentage);
+                attendanceChart.update();
+            }
+
+            // Update last updated time
+            const lastUpdateTime = document.getElementById('lastUpdateTime');
+            if (lastUpdateTime) {
+                lastUpdateTime.textContent = data.updated_at;
+            }
+
+            // Update today's attendance
+            updateTodayAttendance(data.today_attendance);
+
+            showToast('Ma\'lumotlar yangilandi', 'success');
+
+        } catch (error) {
+            console.error('Failed to update dashboard data:', error);
+            showToast('Xatolik yuz berdi', 'error');
+        } finally {
+            if (loadingOverlay) loadingOverlay.classList.add('d-none');
+        }
+    }
+
+    function updateTodayAttendance(attendanceData) {
+        const todaySchedule = document.getElementById('todaySchedule');
+
+        if (!attendanceData || attendanceData.length === 0) {
+            todaySchedule.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                    <h6>Bugun davomat mavjud emas</h6>
+                    <p class="text-muted small">Bugun hech qanday dars yozuvlari mavjud emas</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        const scheduleTimes = [
+            ['8:00', '8:45'],
+            ['9:00', '9:45'],
+            ['10:00', '10:45'],
+            ['11:00', '10:45'],
+            ['12:00', '12:45'],
+        ];
+
+        attendanceData.forEach((item, index) => {
+            const time = scheduleTimes[index] || ['', ''];
+            const statusClass = getStatusClass(item.status);
+            const statusText = getStatusText(item.status);
+
+            html += `
+                <div class="schedule-item border-${statusClass}">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <h6 class="mb-0">${item.subject}</h6>
+                        <span class="attendance-badge badge-${statusClass}">
+                            ${statusText}
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="far fa-clock me-1"></i>${time[0]}-${time[1]}
+                        </small>
+                        <small class="text-muted">${item.teacher}</small>
+                    </div>
+                </div>
+            `;
+        });
+
+        todaySchedule.innerHTML = html;
+    }
+
+    async function loadSubjectPerformance() {
+        try {
+            const response = await fetch('{% url "student_subject_performance" %}');
+            const data = await response.json();
+
+            if (data.error) {
+                showToast(data.error, 'error');
+                return;
+            }
+
+            const subjectContainer = document.getElementById('subjectPerformance');
+
+            if (!data.subjects || data.subjects.length === 0) {
+                subjectContainer.innerHTML = `
+                    <div class="col-12 text-center py-4">
+                        <i class="fas fa-book fa-3x text-muted mb-3"></i>
+                        <h6>Fanlar mavjud emas</h6>
+                        <p class="text-muted small">Sinf tayinlanmagan yoki fanlar yo'q</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            data.subjects.forEach(subject => {
+                html += `
+                    <div class="col-md-6 col-lg-3 mb-4">
+                        <div class="p-3 border rounded h-100">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">${subject.name.substring(0, 15)}${subject.name.length > 15 ? '...' : ''}</h6>
+                                <span class="badge bg-${subject.color}">${subject.percentage}%</span>
+                            </div>
+                            <small class="text-muted d-block mb-2">${subject.teacher.substring(0, 20)}${subject.teacher.length > 20 ? '...' : ''}</small>
+                            <div class="progress subject-progress mb-2">
+                                <div class="progress-bar-${subject.color}" style="width: ${subject.percentage}%"></div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">${subject.present}/${subject.total} dars</small>
+                                <small class="text-muted">${subject.percentage}%</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            subjectContainer.innerHTML = html;
+            showToast('Fan statistikasi yangilandi', 'success');
+
+        } catch (error) {
+            console.error('Failed to load subject performance:', error);
+            showToast('Xatolik yuz berdi', 'error');
+        }
+    }
+
+    async function loadClassRankings() {
+        try {
+            const response = await fetch('{% url "student_class_rankings" %}');
+            const data = await response.json();
+
+            if (data.error) {
+                showToast(data.error, 'error');
+                return;
+            }
+
+            // Update rankings display
+            // You can implement this based on your needs
+
+            showToast('Reyting yangilandi', 'success');
+
+        } catch (error) {
+            console.error('Failed to load class rankings:', error);
+            showToast('Xatolik yuz berdi', 'error');
+        }
+    }
+
+    function refreshTodaySchedule() {
+        // Refresh today's schedule by updating dashboard data
+        updateDashboardData();
+    }
+
+    function loadAllSubjects() {
+        loadSubjectPerformance();
+    }
+
+    function sortSubjectsByPercentage() {
+        // Sort subjects by percentage
+        const subjectContainer = document.getElementById('subjectPerformance');
+        const subjects = Array.from(subjectContainer.children);
+
+        subjects.sort((a, b) => {
+            const aPercentage = parseInt(a.querySelector('.badge').textContent.replace('%', ''));
+            const bPercentage = parseInt(b.querySelector('.badge').textContent.replace('%', ''));
+            return bPercentage - aPercentage;
+        });
+
+        subjectContainer.innerHTML = '';
+        subjects.forEach(subject => subjectContainer.appendChild(subject));
+
+        showToast('Fanlar foiz bo\'yicha tartiblandi', 'info');
+    }
+
+    function sortSubjectsByName() {
+        // Sort subjects by name
+        const subjectContainer = document.getElementById('subjectPerformance');
+        const subjects = Array.from(subjectContainer.children);
+
+        subjects.sort((a, b) => {
+            const aName = a.querySelector('h6').textContent.toLowerCase();
+            const bName = b.querySelector('h6').textContent.toLowerCase();
+            return aName.localeCompare(bName);
+        });
+
+        subjectContainer.innerHTML = '';
+        subjects.forEach(subject => subjectContainer.appendChild(subject));
+
+        showToast('Fanlar nomi bo\'yicha tartiblandi', 'info');
+    }
+
+    function loadMoreSubjects() {
+        // Load more subjects from backend
+        loadSubjectPerformance();
+    }
+
+    // Helper functions
+    function getStatusClass(status) {
+        switch(status) {
+            case 'present': return 'present';
+            case 'absent': return 'absent';
+            case 'late': return 'late';
+            case 'excused': return 'excused';
+            case 'waiting': return 'waiting';
+            case 'missed': return 'missed';
+            default: return 'waiting';
+        }
+    }
+
+    function getStatusText(status) {
+        switch(status) {
+            case 'present': return 'Qatnashdi';
+            case 'absent': return 'Qatnashmadi';
+            case 'late': return 'Kechikdi';
+            case 'excused': return 'Sababli';
+            case 'waiting': return 'Kutilmoqda';
+            case 'missed': return 'O\'tkazib yuborildi';
+            default: return 'Kutilmoqda';
+        }
+    }
+
+    function showToast(message, type = 'info') {
+        const toastId = 'toast-' + Date.now();
+        const toastHtml = `
+            <div id="${toastId}" class="toast align-items-center text-bg-${type}" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+
+        let container = document.querySelector('.toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(container);
+        }
+
+        container.innerHTML += toastHtml;
+
+        const toastElement = document.getElementById(toastId);
+        const toast = new bootstrap.Toast(toastElement, {
+            autohide: true,
+            delay: 3000
+        });
+        toast.show();
+
+        toastElement.addEventListener('hidden.bs.toast', function() {
+            this.remove();
+        });
+    }
+</script>
+{% endblock %}

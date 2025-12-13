@@ -15,9 +15,7 @@
                             <p class="text-muted mb-0">O'qituvchi Dashboard | Bugun: {% now "d F Y, l" %}</p>
                         </div>
                         <div class="d-flex align-items-center gap-3">
-                            <button class="btn btn-primary" onclick="showAttendanceModal()">
-                                <i class="fas fa-clipboard-check me-2"></i>Davomat olish
-                            </button>
+
                             <div class="dropdown">
                                 <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center" type="button" data-bs-toggle="dropdown">
                                     <div class="avatar-circle bg-primary text-white me-2">
@@ -291,7 +289,7 @@
                 <div class="card-body">
                     <div class="row g-2">
                         <div class="col-6">
-                            <button class="btn btn-outline-primary w-100 h-100 p-3" onclick="showAttendanceModal()">
+                            <button class="btn btn-outline-primary w-100 h-100 p-3" onclick="takeAttendanceForSubject">
                                 <i class="fas fa-clipboard-check fa-2x mb-2"></i>
                                 <div>Davomat olish</div>
                             </button>

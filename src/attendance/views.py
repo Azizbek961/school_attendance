@@ -3492,3 +3492,1709 @@ def teacher_edit_attendance(request, attendance_id):
     except Attendance.DoesNotExist:
         messages.error(request, "Davomat topilmadi!")
         return redirect('teacher_dashboard')
+
+
+# attendance/views.py - student_dashboard funksiyasini quyidagicha yangilang:
+
+from django.db.models import Count, Q, Avg, F, ExpressionWrapper, DecimalField
+from datetime import datetime, timedelta
+import json
+from django.utils import timezone
+
+
+@login_required
+def student_dashboard(request):
+    """Student dashboard view with dynamic data from backend"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        messages.error(request, "Sizda o'quvchi huquqlari yo'q!")
+        return redirect('login')
+
+    student = request.user
+    profile = student.profile
+    student_class = profile.student_class
+    today = timezone.now().date()
+
+    # 1. Calculate overall attendance statistics
+    total_attendance = Attendance.objects.filter(student=student).count()
+    present_attendance = Attendance.objects.filter(student=student, status='present').count()
+    absent_attendance = Attendance.objects.filter(student=student, status='absent').count()
+    late_attendance = Attendance.objects.filter(student=student, status='late').count()
+    excused_attendance = Attendance.objects.filter(student=student, status='excused').count()
+
+    my_percentage = 0
+    if total_attendance > 0:
+        my_percentage = round((present_attendance / total_attendance) * 100, 1)
+
+    # 2. Get today's classes count
+    today_subjects = Subject.objects.filter(
+        classes=student_class,
+        attendance__date=today,
+        attendance__student=student
+    ).distinct().count() if student_class else 0
+
+    # 3. Get recent attendance (last 10)
+    recent_attendance = Attendance.objects.filter(
+        student=student
+    ).select_related('subject', 'class_obj', 'teacher').order_by('-date', '-created_at')[:10]
+
+    # 4. Calculate subject-wise attendance statistics
+    subject_stats = []
+    if student_class:
+        # Get all subjects in student's class
+        subjects_in_class = Subject.objects.filter(classes=student_class)
+
+        for subject in subjects_in_class:
+            subject_attendance = Attendance.objects.filter(
+                student=student,
+                subject=subject,
+                class_obj=student_class
+            )
+
+            total = subject_attendance.count()
+            present = subject_attendance.filter(status='present').count()
+
+            percentage = 0
+            if total > 0:
+                percentage = round((present / total) * 100, 1)
+
+            # Get teacher for this subject
+            teacher_name = subject.teacher.get_full_name() if subject.teacher else "Tayinlanmagan"
+
+            subject_stats.append({
+                'id': subject.id,
+                'name': subject.name,
+                'teacher': teacher_name,
+                'total': total,
+                'present': present,
+                'percentage': percentage,
+                'color': get_percentage_color(percentage),
+            })
+
+        # Sort by percentage (highest first)
+        subject_stats.sort(key=lambda x: x['percentage'], reverse=True)
+
+    # 5. Calculate average grade (if you have grades in your system)
+    # Assuming you have a Grade model with subject and score fields
+    # If not, you can calculate from attendance or use a default value
+    average_grade = 4.8  # Default or calculate from your Grade model
+
+    # 6. Weekly attendance trend (last 7 days)
+    weekly_data = []
+    weekly_labels = []
+    for i in range(6, -1, -1):
+        date = today - timedelta(days=i)
+        day_attendance = Attendance.objects.filter(
+            student=student,
+            date=date
+        )
+        total = day_attendance.count()
+        present = day_attendance.filter(status='present').count()
+
+        day_percentage = 0
+        if total > 0:
+            day_percentage = round((present / total) * 100, 1)
+
+        weekly_labels.append(date.strftime('%a'))
+        weekly_data.append(day_percentage)
+
+    # 7. Today's schedule with actual attendance status
+    today_schedule = []
+    if student_class:
+        # Get subjects taught today in student's class
+        today_subjects_list = Subject.objects.filter(
+            classes=student_class
+        ).distinct()
+
+        # This is a simplified schedule - in real app, you'd have a proper schedule model
+        # Here we'll use subjects with their regular schedule times
+        schedule_times = [
+            ('8:00', '8:45'),
+            ('9:00', '9:45'),
+            ('10:00', '10:45'),
+            ('11:00', '11:45'),
+            ('12:00', '12:45'),
+        ]
+
+        for i, subject in enumerate(today_subjects_list[:5]):  # Limit to 5 for display
+            # Check attendance for this subject today
+            attendance_today = Attendance.objects.filter(
+                student=student,
+                subject=subject,
+                date=today
+            ).first()
+
+            status = 'waiting'
+            status_class = 'secondary'
+
+            if attendance_today:
+                if attendance_today.status == 'present':
+                    status = 'present'
+                    status_class = 'success'
+                elif attendance_today.status == 'absent':
+                    status = 'absent'
+                    status_class = 'danger'
+                elif attendance_today.status == 'late':
+                    status = 'late'
+                    status_class = 'warning'
+                elif attendance_today.status == 'excused':
+                    status = 'excused'
+                    status_class = 'info'
+            else:
+                # Check if the class time has passed
+                current_time = timezone.now().time()
+                class_time = datetime.strptime(schedule_times[i][0], '%H:%M').time()
+                if current_time > class_time:
+                    status = 'missed'
+                    status_class = 'secondary'
+
+            today_schedule.append({
+                'subject': subject.name,
+                'teacher': subject.teacher.get_full_name() if subject.teacher else 'Tayinlanmagan',
+                'time_start': schedule_times[i][0],
+                'time_end': schedule_times[i][1],
+                'status': status,
+                'status_class': status_class,
+            })
+
+    # 8. Class ranking
+    class_ranking = None
+    if student_class:
+        # Get all students in class
+        students_in_class = Profile.objects.filter(
+            role='student',
+            student_class=student_class
+        ).select_related('user')
+
+        rankings = []
+        for student_profile in students_in_class:
+            stu = student_profile.user
+            attendance_records = Attendance.objects.filter(student=stu)
+            total = attendance_records.count()
+            present = attendance_records.filter(status='present').count()
+
+            percentage = 0
+            if total > 0:
+                percentage = round((present / total) * 100, 1)
+
+            rankings.append({
+                'student': stu,
+                'percentage': percentage,
+                'name': stu.get_full_name() or stu.username,
+            })
+
+        # Sort by percentage
+        rankings.sort(key=lambda x: x['percentage'], reverse=True)
+
+        # Find current student's rank
+        for i, rank in enumerate(rankings, 1):
+            if rank['student'].id == student.id:
+                class_ranking = {
+                    'rank': i,
+                    'total_students': len(rankings),
+                    'percentage': rank['percentage'],
+                    'top_students': rankings[:3],  # Top 3 students
+                }
+                break
+
+    # 9. Monthly statistics
+    month_start = today.replace(day=1)
+    monthly_attendance = Attendance.objects.filter(
+        student=student,
+        date__gte=month_start,
+        date__lte=today
+    )
+
+    monthly_total = monthly_attendance.count()
+    monthly_present = monthly_attendance.filter(status='present').count()
+    monthly_percentage = 0
+    if monthly_total > 0:
+        monthly_percentage = round((monthly_present / monthly_total) * 100, 1)
+
+    # 10. Status distribution for pie chart
+    status_distribution = {
+        'present': present_attendance,
+        'absent': absent_attendance,
+        'late': late_attendance,
+        'excused': excused_attendance,
+    }
+
+    # Prepare chart data
+    chart_data = {
+        'weekly_trend': {
+            'labels': weekly_labels,
+            'data': weekly_data,
+        },
+        'status_distribution': {
+            'labels': ['Qatnashdi', 'Qatnashmadi', 'Kechikdi', 'Sababli'],
+            'data': [
+                status_distribution['present'],
+                status_distribution['absent'],
+                status_distribution['late'],
+                status_distribution['excused']
+            ],
+            'colors': ['#28a745', '#dc3545', '#ffc107', '#6c757d']
+        }
+    }
+
+    context = {
+        'student': student,
+        'profile': profile,
+        'student_class': student_class,
+        'my_percentage': my_percentage,
+        'today_subjects_count': today_subjects,
+        'recent_attendance': recent_attendance,
+        'recent_attendance_count': recent_attendance.count(),
+        'subject_stats': subject_stats,
+        'average_grade': average_grade,
+        'today_schedule': today_schedule,
+        'class_ranking': class_ranking,
+        'status_distribution': status_distribution,
+        'monthly_percentage': monthly_percentage,
+        'monthly_total': monthly_total,
+        'monthly_present': monthly_present,
+        'total_attendance': total_attendance,
+        'present_attendance': present_attendance,
+        'chart_data_json': json.dumps(chart_data),
+        'today': today,
+        'current_date': today,
+    }
+
+    return render(request, 'attendance/student_dashboard.html', context)
+
+
+def get_percentage_color(percentage):
+    """Return color based on percentage"""
+    if percentage >= 90:
+        return 'success'
+    elif percentage >= 70:
+        return 'info'
+    elif percentage >= 50:
+        return 'warning'
+    else:
+        return 'danger'
+
+
+# AJAX endpoints for dynamic updates
+@login_required
+def student_dashboard_data(request):
+    """Get student dashboard data for AJAX requests"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    student = request.user
+    today = timezone.now().date()
+
+    # Get period from request
+    period = request.GET.get('period', 'week')
+
+    if period == 'week':
+        start_date = today - timedelta(days=7)
+    elif period == 'month':
+        start_date = today - timedelta(days=30)
+    elif period == 'year':
+        start_date = today - timedelta(days=365)
+    else:
+        start_date = today - timedelta(days=7)
+
+    # Get attendance statistics for the period
+    attendance_records = Attendance.objects.filter(
+        student=student,
+        date__gte=start_date,
+        date__lte=today
+    )
+
+    total = attendance_records.count()
+    present = attendance_records.filter(status='present').count()
+
+    percentage = 0
+    if total > 0:
+        percentage = round((present / total) * 100, 1)
+
+    # Daily trend
+    daily_data = []
+    current_date = start_date
+    while current_date <= today:
+        day_records = attendance_records.filter(date=current_date)
+        day_total = day_records.count()
+        day_present = day_records.filter(status='present').count()
+
+        day_percentage = 0
+        if day_total > 0:
+            day_percentage = round((day_present / day_total) * 100, 1)
+
+        daily_data.append({
+            'date': current_date.strftime('%Y-%m-%d'),
+            'day': current_date.strftime('%a'),
+            'percentage': day_percentage,
+            'total': day_total,
+            'present': day_present,
+        })
+
+        current_date += timedelta(days=1)
+
+    # Get today's attendance
+    today_attendance = Attendance.objects.filter(
+        student=student,
+        date=today
+    ).select_related('subject', 'teacher')
+
+    today_attendance_list = []
+    for att in today_attendance:
+        today_attendance_list.append({
+            'subject': att.subject.name,
+            'teacher': att.teacher.get_full_name(),
+            'status': att.status,
+            'status_display': att.get_status_display(),
+            'time': att.created_at.strftime('%H:%M'),
+            'notes': att.notes or '',
+        })
+
+    data = {
+        'period': period,
+        'overall_percentage': percentage,
+        'total': total,
+        'present': present,
+        'daily_data': daily_data,
+        'today_attendance': today_attendance_list,
+        'updated_at': timezone.now().strftime('%H:%M:%S'),
+    }
+
+    return JsonResponse(data)
+
+
+@login_required
+def student_subject_performance(request):
+    """Get subject performance data for AJAX requests"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    student = request.user
+    student_class = student.profile.student_class
+
+    if not student_class:
+        return JsonResponse({'subjects': []})
+
+    # Get all subjects in student's class
+    subjects = Subject.objects.filter(classes=student_class)
+
+    subject_performance = []
+    for subject in subjects:
+        attendance_records = Attendance.objects.filter(
+            student=student,
+            subject=subject
+        )
+
+        total = attendance_records.count()
+        present = attendance_records.filter(status='present').count()
+
+        percentage = 0
+        if total > 0:
+            percentage = round((present / total) * 100, 1)
+
+        # Get latest attendance for this subject
+        latest_attendance = attendance_records.order_by('-date').first()
+
+        subject_performance.append({
+            'id': subject.id,
+            'name': subject.name,
+            'teacher': subject.teacher.get_full_name() if subject.teacher else 'Tayinlanmagan',
+            'total': total,
+            'present': present,
+            'percentage': percentage,
+            'color': get_percentage_color(percentage),
+            'latest_date': latest_attendance.date.strftime('%d.%m.%Y') if latest_attendance else None,
+            'latest_status': latest_attendance.get_status_display() if latest_attendance else None,
+        })
+
+    # Sort by percentage
+    subject_performance.sort(key=lambda x: x['percentage'], reverse=True)
+
+    return JsonResponse({'subjects': subject_performance})
+
+
+@login_required
+def student_class_rankings(request):
+    """Get class rankings for AJAX requests"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    student = request.user
+    student_class = student.profile.student_class
+
+    if not student_class:
+        return JsonResponse({'error': 'Student has no class assigned'}, status=400)
+
+    # Get all students in class with their attendance stats
+    students_in_class = Profile.objects.filter(
+        role='student',
+        student_class=student_class
+    ).select_related('user')
+
+    rankings = []
+    for profile in students_in_class:
+        stu = profile.user
+        attendance_records = Attendance.objects.filter(student=stu)
+        total = attendance_records.count()
+        present = attendance_records.filter(status='present').count()
+
+        percentage = 0
+        if total > 0:
+            percentage = round((present / total) * 100, 1)
+
+        rankings.append({
+            'id': stu.id,
+            'name': stu.get_full_name() or stu.username,
+            'percentage': percentage,
+            'present': present,
+            'total': total,
+            'is_current': stu.id == student.id,
+        })
+
+    # Sort by percentage
+    rankings.sort(key=lambda x: x['percentage'], reverse=True)
+
+    # Add rank numbers
+    for i, rank in enumerate(rankings, 1):
+        rank['rank'] = i
+        rank['rank_class'] = 'success' if i <= 3 else 'primary'
+
+    # Get top 10 for display
+    top_rankings = rankings[:10]
+
+    # Find current student if not in top 10
+    current_student_rank = None
+    for rank in rankings:
+        if rank['is_current']:
+            current_student_rank = rank
+            break
+
+    data = {
+        'rankings': top_rankings,
+        'current_student': current_student_rank,
+        'total_students': len(rankings),
+        'class_name': student_class.name,
+    }
+
+    return JsonResponse(data)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# attendance/views.py
+
+from django.db.models import Q, Count, Avg, F, ExpressionWrapper, DecimalField
+from django.core.paginator import Paginator
+from django.utils import timezone
+from datetime import datetime, timedelta
+import json
+from django.http import JsonResponse
+
+
+# ==================== STUDENT VIEWS ====================
+
+@login_required
+def student_attendance_history(request):
+    """Student attendance history page"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        messages.error(request, "Sizda o'quvchi huquqlari yo'q!")
+        return redirect('login')
+
+    student = request.user
+
+    # Get filter parameters
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    subject_id = request.GET.get('subject', '')
+    status_filter = request.GET.get('status', '')
+    page = request.GET.get('page', 1)
+
+    # Get attendance records
+    attendance_records = Attendance.objects.filter(
+        student=student
+    ).select_related('subject', 'class_obj', 'teacher').order_by('-date', '-created_at')
+
+    # Apply filters
+    if date_from:
+        attendance_records = attendance_records.filter(date__gte=date_from)
+    if date_to:
+        attendance_records = attendance_records.filter(date__lte=date_to)
+    if subject_id:
+        attendance_records = attendance_records.filter(subject_id=subject_id)
+    if status_filter:
+        attendance_records = attendance_records.filter(status=status_filter)
+
+    # Get subjects for filter dropdown
+    subjects = Subject.objects.filter(
+        classes=student.profile.student_class
+    ) if student.profile.student_class else Subject.objects.none()
+
+    # Pagination
+    paginator = Paginator(attendance_records, 20)
+    try:
+        attendance_page = paginator.page(page)
+    except:
+        attendance_page = paginator.page(1)
+
+    # Calculate statistics
+    total_records = attendance_records.count()
+    present_count = attendance_records.filter(status='present').count()
+    absent_count = attendance_records.filter(status='absent').count()
+    late_count = attendance_records.filter(status='late').count()
+    excused_count = attendance_records.filter(status='excused').count()
+
+    # Calculate monthly statistics
+    today = timezone.now().date()
+    month_start = today.replace(day=1)
+    monthly_attendance = attendance_records.filter(
+        date__gte=month_start,
+        date__lte=today
+    )
+    monthly_total = monthly_attendance.count()
+    monthly_present = monthly_attendance.filter(status='present').count()
+    monthly_percentage = round((monthly_present / monthly_total * 100) if monthly_total > 0 else 0, 1)
+
+    context = {
+        'attendance_records': attendance_page,
+        'subjects': subjects,
+        'total_records': total_records,
+        'present_count': present_count,
+        'absent_count': absent_count,
+        'late_count': late_count,
+        'excused_count': excused_count,
+        'monthly_percentage': monthly_percentage,
+        'monthly_total': monthly_total,
+        'date_from': date_from,
+        'date_to': date_to,
+        'subject_id': subject_id,
+        'status_filter': status_filter,
+    }
+
+    return render(request, 'attendance/student_attendance_history.html', context)
+
+
+@login_required
+def student_attendance_history_data(request):
+    """AJAX endpoint for attendance history data"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    student = request.user
+
+    # Get filter parameters
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    subject_id = request.GET.get('subject', '')
+    status_filter = request.GET.get('status', '')
+
+    # Get attendance records
+    attendance_records = Attendance.objects.filter(
+        student=student
+    ).select_related('subject', 'teacher').order_by('-date', '-created_at')
+
+    # Apply filters
+    if date_from:
+        attendance_records = attendance_records.filter(date__gte=date_from)
+    if date_to:
+        attendance_records = attendance_records.filter(date__lte=date_to)
+    if subject_id:
+        attendance_records = attendance_records.filter(subject_id=subject_id)
+    if status_filter:
+        attendance_records = attendance_records.filter(status=status_filter)
+
+    # Prepare data for datatable
+    data = {
+        'records': [
+            {
+                'id': record.id,
+                'date': record.date.strftime('%d.%m.%Y'),
+                'subject': record.subject.name,
+                'teacher': record.teacher.get_full_name(),
+                'status': record.status,
+                'status_display': record.get_status_display(),
+                'notes': record.notes or '',
+                'time': record.created_at.strftime('%H:%M'),
+            }
+            for record in attendance_records[:100]  # Limit to 100 records
+        ],
+        'total': attendance_records.count(),
+        'filtered': attendance_records.count(),
+    }
+
+    return JsonResponse(data)
+
+
+@login_required
+def student_statistics(request):
+    """Student detailed statistics page"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        messages.error(request, "Sizda o'quvchi huquqlari yo'q!")
+        return redirect('login')
+
+    student = request.user
+    student_class = student.profile.student_class
+    today = timezone.now().date()
+
+    # Get time period
+    period = request.GET.get('period', 'month')
+
+    if period == 'week':
+        start_date = today - timedelta(days=7)
+    elif period == 'month':
+        start_date = today - timedelta(days=30)
+    elif period == 'year':
+        start_date = today - timedelta(days=365)
+    else:
+        start_date = today - timedelta(days=30)
+
+    # Get attendance records for period
+    attendance_records = Attendance.objects.filter(
+        student=student,
+        date__gte=start_date,
+        date__lte=today
+    )
+
+    # Overall statistics
+    total = attendance_records.count()
+    present = attendance_records.filter(status='present').count()
+    percentage = round((present / total * 100) if total > 0 else 0, 1)
+
+    # Subject-wise statistics
+    subject_stats = []
+    if student_class:
+        subjects = Subject.objects.filter(classes=student_class)
+
+        for subject in subjects:
+            subject_attendance = attendance_records.filter(subject=subject)
+            subject_total = subject_attendance.count()
+            subject_present = subject_attendance.filter(status='present').count()
+
+            subject_percentage = round((subject_present / subject_total * 100) if subject_total > 0 else 0, 1)
+
+            # Get trend (last 7 days)
+            trend_data = []
+            for i in range(6, -1, -1):
+                trend_date = today - timedelta(days=i)
+                day_records = subject_attendance.filter(date=trend_date)
+                day_total = day_records.count()
+                day_present = day_records.filter(status='present').count()
+                day_percentage = round((day_present / day_total * 100) if day_total > 0 else 0, 1)
+                trend_data.append(day_percentage)
+
+            subject_stats.append({
+                'id': subject.id,
+                'name': subject.name,
+                'total': subject_total,
+                'present': subject_present,
+                'percentage': subject_percentage,
+                'trend': trend_data,
+                'teacher': subject.teacher.get_full_name() if subject.teacher else 'Tayinlanmagan',
+            })
+
+        # Sort by percentage
+        subject_stats.sort(key=lambda x: x['percentage'], reverse=True)
+
+    # Monthly trend data
+    monthly_trend = []
+    for i in range(5, -1, -1):
+        month_date = today - timedelta(days=30 * i)
+        month_start = month_date.replace(day=1)
+        if i == 0:
+            month_end = today
+        else:
+            next_month = month_start + timedelta(days=32)
+            month_end = next_month.replace(day=1) - timedelta(days=1)
+
+        month_records = Attendance.objects.filter(
+            student=student,
+            date__gte=month_start,
+            date__lte=month_end
+        )
+
+        month_total = month_records.count()
+        month_present = month_records.filter(status='present').count()
+        month_percentage = round((month_present / month_total * 100) if month_total > 0 else 0, 1)
+
+        monthly_trend.append({
+            'month': month_start.strftime('%b %Y'),
+            'percentage': month_percentage,
+            'total': month_total,
+            'present': month_present,
+        })
+
+    # Status distribution
+    status_distribution = {
+        'present': attendance_records.filter(status='present').count(),
+        'absent': attendance_records.filter(status='absent').count(),
+        'late': attendance_records.filter(status='late').count(),
+        'excused': attendance_records.filter(status='excused').count(),
+    }
+
+    context = {
+        'period': period,
+        'total': total,
+        'present': present,
+        'percentage': percentage,
+        'subject_stats': subject_stats,
+        'monthly_trend': monthly_trend,
+        'status_distribution': status_distribution,
+        'start_date': start_date,
+        'end_date': today,
+    }
+
+    return render(request, 'attendance/student_statistics.html', context)
+
+
+@login_required
+def student_statistics_data(request):
+    """AJAX endpoint for statistics data"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    student = request.user
+    chart_type = request.GET.get('type', 'monthly')
+
+    today = timezone.now().date()
+
+    if chart_type == 'monthly':
+        # Monthly trend for last 6 months
+        data = []
+        labels = []
+
+        for i in range(5, -1, -1):
+            month_date = today - timedelta(days=30 * i)
+            month_start = month_date.replace(day=1)
+            if i == 0:
+                month_end = today
+            else:
+                next_month = month_start + timedelta(days=32)
+                month_end = next_month.replace(day=1) - timedelta(days=1)
+
+            month_records = Attendance.objects.filter(
+                student=student,
+                date__gte=month_start,
+                date__lte=month_end
+            )
+
+            month_total = month_records.count()
+            month_present = month_records.filter(status='present').count()
+            month_percentage = round((month_present / month_total * 100) if month_total > 0 else 0, 1)
+
+            labels.append(month_start.strftime('%b'))
+            data.append(month_percentage)
+
+        chart_data = {
+            'labels': labels,
+            'data': data,
+        }
+
+    elif chart_type == 'weekly':
+        # Weekly trend for last 8 weeks
+        data = []
+        labels = []
+
+        for i in range(7, -1, -1):
+            week_start = today - timedelta(days=today.weekday() + 7 * i)
+            week_end = week_start + timedelta(days=6)
+
+            week_records = Attendance.objects.filter(
+                student=student,
+                date__gte=week_start,
+                date__lte=week_end
+            )
+
+            week_total = week_records.count()
+            week_present = week_records.filter(status='present').count()
+            week_percentage = round((week_present / week_total * 100) if week_total > 0 else 0, 1)
+
+            labels.append(f"Hafta {i + 1}")
+            data.append(week_percentage)
+
+        chart_data = {
+            'labels': labels,
+            'data': data,
+        }
+
+    else:  # daily
+        # Daily trend for last 14 days
+        data = []
+        labels = []
+
+        for i in range(13, -1, -1):
+            day_date = today - timedelta(days=i)
+            day_records = Attendance.objects.filter(
+                student=student,
+                date=day_date
+            )
+
+            day_total = day_records.count()
+            day_present = day_records.filter(status='present').count()
+            day_percentage = round((day_present / day_total * 100) if day_total > 0 else 0, 1)
+
+            labels.append(day_date.strftime('%d.%m'))
+            data.append(day_percentage)
+
+        chart_data = {
+            'labels': labels,
+            'data': data,
+        }
+
+    return JsonResponse(chart_data)
+
+
+@login_required
+def student_my_classes(request):
+    """Student's classes and subjects page"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        messages.error(request, "Sizda o'quvchi huquqlari yo'q!")
+        return redirect('login')
+
+    student = request.user
+    student_class = student.profile.student_class
+
+    if not student_class:
+        messages.warning(request, "Sizga sinf tayinlanmagan!")
+        return redirect('student_dashboard')
+
+    # Get subjects in student's class
+    subjects = Subject.objects.filter(classes=student_class).select_related('teacher')
+
+    # Get class information
+    class_info = {
+        'name': student_class.name,
+        'teacher': student_class.teacher.get_full_name() if student_class.teacher else 'Tayinlanmagan',
+        'room': student_class.room or 'Xona yo\'q',
+        'schedule': student_class.schedule or 'Jadval yo\'q',
+        'student_count': Profile.objects.filter(student_class=student_class, role='student').count(),
+    }
+
+    # Get attendance for each subject
+    for subject in subjects:
+        attendance_records = Attendance.objects.filter(
+            student=student,
+            subject=subject
+        )
+
+        subject.total = attendance_records.count()
+        subject.present = attendance_records.filter(status='present').count()
+        subject.percentage = round((subject.present / subject.total * 100) if subject.total > 0 else 0, 1)
+
+        # Get last 3 attendance records
+        subject.recent_attendance = attendance_records.order_by('-date')[:3]
+
+    context = {
+        'student_class': student_class,
+        'class_info': class_info,
+        'subjects': subjects,
+    }
+
+    return render(request, 'attendance/student_my_classes.html', context)
+
+
+@login_required
+def student_notifications(request):
+    """Student notifications page"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        messages.error(request, "Sizda o'quvchi huquqlari yo'q!")
+        return redirect('login')
+
+    student = request.user
+    today = timezone.now().date()
+
+    # In a real app, you would have a Notification model
+    # For now, we'll create sample notifications based on attendance
+
+    # Get recent attendance for notifications
+    recent_attendance = Attendance.objects.filter(
+        student=student
+    ).select_related('subject', 'teacher').order_by('-created_at')[:10]
+
+    notifications = []
+
+    for attendance in recent_attendance:
+        if attendance.status == 'present':
+            notifications.append({
+                'type': 'success',
+                'icon': 'fa-check-circle',
+                'title': 'Davomat qayd etildi',
+                'message': f"{attendance.subject.name} darsida davomat qayd etildi",
+                'time': attendance.created_at,
+                'read': False,
+            })
+        elif attendance.status == 'absent':
+            notifications.append({
+                'type': 'danger',
+                'icon': 'fa-times-circle',
+                'title': 'Davomatda yo\'q',
+                'message': f"{attendance.subject.name} darsida qatnashmadingiz",
+                'time': attendance.created_at,
+                'read': False,
+            })
+        elif attendance.status == 'late':
+            notifications.append({
+                'type': 'warning',
+                'icon': 'fa-clock',
+                'title': 'Kechikdingiz',
+                'message': f"{attendance.subject.name} darsiga kechikdingiz",
+                'time': attendance.created_at,
+                'read': False,
+            })
+
+    # Add some sample notifications
+    notifications.extend([
+        {
+            'type': 'info',
+            'icon': 'fa-info-circle',
+            'title': 'Yangi topshiriq',
+            'message': 'Matematika fanidan yangi topshiriq qo\'shildi',
+            'time': today - timedelta(days=1),
+            'read': True,
+        },
+        {
+            'type': 'primary',
+            'icon': 'fa-calendar',
+            'title': 'Yangi tadbir',
+            'message': '25-dekabr kuni "Yangi yil" tantanasi bo\'ladi',
+            'time': today - timedelta(days=2),
+            'read': True,
+        },
+        {
+            'type': 'warning',
+            'icon': 'fa-exclamation-triangle',
+            'title': 'Ogohlantirish',
+            'message': 'Davomat foizingiz 70% dan past. E\'tibor bering!',
+            'time': today - timedelta(days=3),
+            'read': False,
+        },
+    ])
+
+    # Sort by time (newest first)
+    notifications.sort(key=lambda x: x['time'], reverse=True)
+
+    # Count unread notifications
+    unread_count = sum(1 for n in notifications if not n['read'])
+
+    context = {
+        'notifications': notifications,
+        'unread_count': unread_count,
+        'total_count': len(notifications),
+    }
+
+    return render(request, 'attendance/student_notifications.html', context)
+
+
+@login_required
+def student_notifications_data(request):
+    """AJAX endpoint for notifications"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+
+    # Return notification count for badge
+    data = {
+        'count': 3,  # You can calculate this dynamically
+        'notifications': [
+            {
+                'id': 1,
+                'title': 'Yangi xabar',
+                'message': 'Sizga yangi xabar kelgan',
+                'time': '10:30',
+                'read': False,
+            }
+        ]
+    }
+
+    return JsonResponse(data)
+
+
+@login_required
+def student_settings(request):
+    """Student settings page"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        messages.error(request, "Sizda o'quvchi huquqlari yo'q!")
+        return redirect('login')
+
+    student = request.user
+    profile = student.profile
+
+    if request.method == 'POST':
+        # Update profile information
+        student.first_name = request.POST.get('first_name', student.first_name)
+        student.last_name = request.POST.get('last_name', student.last_name)
+        student.email = request.POST.get('email', student.email)
+
+        profile.phone = request.POST.get('phone', profile.phone)
+
+        # Handle birth date
+        birth_date_str = request.POST.get('birth_date')
+        if birth_date_str:
+            try:
+                profile.birth_date = datetime.strptime(birth_date_str, '%Y-%m-%d').date()
+            except:
+                pass
+
+        # Handle password change
+        current_password = request.POST.get('current_password')
+        new_password = request.POST.get('new_password')
+        confirm_password = request.POST.get('confirm_password')
+
+        if current_password and new_password and confirm_password:
+            if student.check_password(current_password):
+                if new_password == confirm_password:
+                    student.set_password(new_password)
+                    messages.success(request, "Parol muvaffaqiyatli o'zgartirildi!")
+                else:
+                    messages.error(request, "Yangi parollar mos kelmadi!")
+            else:
+                messages.error(request, "Joriy parol noto'g'ri!")
+
+        student.save()
+        profile.save()
+
+        messages.success(request, "Profil ma'lumotlari yangilandi!")
+        return redirect('student_settings')
+
+    context = {
+        'student': student,
+        'profile': profile,
+    }
+
+    return render(request, 'attendance/student_settings.html', context)
+
+
+@login_required
+def student_profile(request):
+    """Student profile page"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        messages.error(request, "Sizda o'quvchi huquqlari yo'q!")
+        return redirect('login')
+
+    student = request.user
+    profile = student.profile
+    student_class = profile.student_class
+
+    # Calculate statistics
+    attendance_records = Attendance.objects.filter(student=student)
+    total_attendance = attendance_records.count()
+    present_attendance = attendance_records.filter(status='present').count()
+    attendance_percentage = round((present_attendance / total_attendance * 100) if total_attendance > 0 else 0, 1)
+
+    # Get subject statistics
+    subject_stats = []
+    if student_class:
+        subjects = Subject.objects.filter(classes=student_class)
+
+        for subject in subjects:
+            subject_attendance = attendance_records.filter(subject=subject)
+            total = subject_attendance.count()
+            present = subject_attendance.filter(status='present').count()
+            percentage = round((present / total * 100) if total > 0 else 0, 1)
+
+            subject_stats.append({
+                'name': subject.name,
+                'total': total,
+                'present': present,
+                'percentage': percentage,
+            })
+
+    context = {
+        'student': student,
+        'profile': profile,
+        'student_class': student_class,
+        'attendance_percentage': attendance_percentage,
+        'total_attendance': total_attendance,
+        'present_attendance': present_attendance,
+        'subject_stats': subject_stats,
+    }
+
+    return render(request, 'attendance/student_profile.html', context)
+
+
+@login_required
+def student_schedule(request):
+    """Student schedule page"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        messages.error(request, "Sizda o'quvchi huquqlari yo'q!")
+        return redirect('login')
+
+    student = request.user
+    student_class = student.profile.student_class
+
+    if not student_class:
+        messages.warning(request, "Sizga sinf tayinlanmagan!")
+        return redirect('student_dashboard')
+
+    # Get schedule for the week
+    today = timezone.now().date()
+    start_of_week = today - timedelta(days=today.weekday())
+
+    week_days = []
+    for i in range(7):
+        day_date = start_of_week + timedelta(days=i)
+        week_days.append({
+            'date': day_date,
+            'day_name': day_date.strftime('%A'),
+            'is_today': day_date == today,
+        })
+
+    # Get subjects for this class
+    subjects = Subject.objects.filter(classes=student_class)
+
+    # Create schedule (simplified - in real app, use proper schedule model)
+    schedule = []
+    time_slots = [
+        ('08:00', '08:45'),
+        ('09:00', '09:45'),
+        ('10:00', '10:45'),
+        ('11:00', '11:45'),
+        ('12:00', '12:45'),
+        ('13:00', '13:45'),
+        ('14:00', '14:45'),
+    ]
+
+    for time_slot in time_slots:
+        for day in week_days:
+            # Find subject for this time slot (simplified logic)
+            # In real app, query Schedule model
+            subject = subjects.first() if subjects.exists() else None
+
+            if subject:
+                schedule.append({
+                    'time_start': time_slot[0],
+                    'time_end': time_slot[1],
+                    'day': day['date'],
+                    'day_name': day['day_name'],
+                    'subject': subject.name,
+                    'teacher': subject.teacher.get_full_name() if subject.teacher else '',
+                    'room': student_class.room or '101',
+                })
+
+    context = {
+        'week_days': week_days,
+        'schedule': schedule,
+        'time_slots': time_slots,
+        'today': today,
+        'student_class': student_class,
+    }
+
+    return render(request, 'attendance/student_schedule.html', context)
+
+
+@login_required
+def student_tasks(request):
+    """Student tasks page"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        messages.error(request, "Sizda o'quvchi huquqlari yo'q!")
+        return redirect('login')
+
+    # In real app, you would have a Task model
+    # For now, sample data
+    tasks = [
+        {
+            'id': 1,
+            'title': 'Matematika topshirig\'i',
+            'subject': 'Matematika',
+            'description': 'Algebra bo\'limidan 1-10 misollar',
+            'due_date': timezone.now().date() + timedelta(days=2),
+            'status': 'pending',
+            'priority': 'high',
+        },
+        {
+            'id': 2,
+            'title': 'Fizika laboratoriya ishi',
+            'subject': 'Fizika',
+            'description': 'Laboratoriya hisoboti tayyorlash',
+            'due_date': timezone.now().date() + timedelta(days=5),
+            'status': 'in_progress',
+            'priority': 'medium',
+        },
+        {
+            'id': 3,
+            'title': 'Ingliz tili prezentatsiya',
+            'subject': 'Ingliz tili',
+            'description': '"My Family" mavzusida prezentatsiya',
+            'due_date': timezone.now().date() + timedelta(days=7),
+            'status': 'completed',
+            'priority': 'low',
+        },
+    ]
+
+    # Count tasks by status
+    pending_count = sum(1 for t in tasks if t['status'] == 'pending')
+    in_progress_count = sum(1 for t in tasks if t['status'] == 'in_progress')
+    completed_count = sum(1 for t in tasks if t['status'] == 'completed')
+
+    context = {
+        'tasks': tasks,
+        'pending_count': pending_count,
+        'in_progress_count': in_progress_count,
+        'completed_count': completed_count,
+        'total_count': len(tasks),
+    }
+
+    return render(request, 'attendance/student_tasks.html', context)
+
+
+@login_required
+def student_messages(request):
+    """Student messages page"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        messages.error(request, "Sizda o'quvchi huquqlari yo'q!")
+        return redirect('login')
+
+    # Sample messages
+    messages_list = [
+        {
+            'id': 1,
+            'sender': 'Aliyeva Malika',
+            'sender_role': 'O\'qituvchi',
+            'subject': 'Matematika darsi haqida',
+            'message': 'Ertangi darsga algebra darsligini olib keling',
+            'time': '10:30',
+            'date': '13.12.2024',
+            'read': False,
+        },
+        {
+            'id': 2,
+            'sender': 'Karimov Bahodir',
+            'sender_role': 'O\'qituvchi',
+            'subject': 'Laboratoriya ishi',
+            'message': 'Laboratoriya hisobotini ertaga topshirishingiz kerak',
+            'time': '14:15',
+            'date': '12.12.2024',
+            'read': True,
+        },
+        {
+            'id': 3,
+            'sender': 'Smith John',
+            'sender_role': 'O\'qituvchi',
+            'subject': 'Prezentatsiya',
+            'message': 'Prezentatsiyangiz juda yaxshi bo\'ldi. Tabriklayman!',
+            'time': '09:45',
+            'date': '11.12.2024',
+            'read': True,
+        },
+    ]
+
+    unread_count = sum(1 for m in messages_list if not m['read'])
+
+    context = {
+        'messages': messages_list,
+        'unread_count': unread_count,
+        'total_count': len(messages_list),
+    }
+
+    return render(request, 'attendance/student_messages.html', context)
+
+
+@login_required
+def student_events(request):
+    """Student events page"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        messages.error(request, "Sizda o'quvchi huquqlari yo'q!")
+        return redirect('login')
+
+    # Sample events
+    events = [
+        {
+            'id': 1,
+            'title': 'Yangi yil tantanasi',
+            'description': 'Maktab yangi yil bayrami',
+            'date': timezone.now().date() + timedelta(days=10),
+            'time': '10:00',
+            'location': 'Sport zali',
+            'type': 'holiday',
+        },
+        {
+            'id': 2,
+            'title': 'Olimpiada',
+            'description': 'Matematika fanidan respublika olimpiadasi',
+            'date': timezone.now().date() + timedelta(days=15),
+            'time': '09:00',
+            'location': '210-xona',
+            'type': 'competition',
+        },
+        {
+            'id': 3,
+            'title': 'Ota-ona majlisi',
+            'description': '1-chorak natijalari haqida',
+            'date': timezone.now().date() + timedelta(days=20),
+            'time': '18:00',
+            'location': 'Akademik zal',
+            'type': 'meeting',
+        },
+    ]
+
+    # Group events by month
+    from collections import defaultdict
+    events_by_month = defaultdict(list)
+
+    for event in events:
+        month_key = event['date'].strftime('%B %Y')
+        events_by_month[month_key].append(event)
+
+    context = {
+        'events': events,
+        'events_by_month': dict(events_by_month),
+        'today': timezone.now().date(),
+    }
+
+    return render(request, 'attendance/student_events.html', context)
+
+
+@login_required
+def student_reports(request):
+    """Student reports page"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        messages.error(request, "Sizda o'quvchi huquqlari yo'q!")
+        return redirect('login')
+
+    student = request.user
+    today = timezone.now().date()
+
+    # Report types
+    report_types = [
+        {'id': 'daily', 'name': 'Kunlik hisobot', 'description': 'Har bir kun uchun davomat'},
+        {'id': 'weekly', 'name': 'Haftalik hisobot', 'description': 'Hafta davomidagi davomat'},
+        {'id': 'monthly', 'name': 'Oylik hisobot', 'description': 'Oy davomidagi davomat'},
+        {'id': 'semester', 'name': 'Semestrlik hisobot', 'description': 'Butun semestr davomidagi davomat'},
+    ]
+
+    # Recent reports (sample)
+    recent_reports = [
+        {
+            'id': 1,
+            'name': 'Dekabr oyi davomat hisoboti',
+            'type': 'monthly',
+            'period': '01.12.2024 - 31.12.2024',
+            'generated_date': today - timedelta(days=2),
+            'status': 'completed',
+        },
+        {
+            'id': 2,
+            'name': '48-hafta davomat hisoboti',
+            'type': 'weekly',
+            'period': '25.11.2024 - 01.12.2024',
+            'generated_date': today - timedelta(days=9),
+            'status': 'completed',
+        },
+        {
+            'id': 3,
+            'name': 'Noyabr oyi davomat hisoboti',
+            'type': 'monthly',
+            'period': '01.11.2024 - 30.11.2024',
+            'generated_date': today - timedelta(days=12),
+            'status': 'completed',
+        },
+    ]
+
+    context = {
+        'report_types': report_types,
+        'recent_reports': recent_reports,
+        'today': today,
+    }
+
+    return render(request, 'attendance/student_reports.html', context)
+
+
+# Update the student_statistics function in views.py to include missing context variables
+
+def student_statistics(request):
+    """Student detailed statistics page"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        messages.error(request, "Sizda o'quvchi huquqlari yo'q!")
+        return redirect('login')
+
+    student = request.user
+    student_class = student.profile.student_class
+    today = timezone.now().date()
+
+    # Get time period
+    period = request.GET.get('period', 'month')
+
+    if period == 'week':
+        start_date = today - timedelta(days=7)
+        period_display = "1 hafta"
+    elif period == 'month':
+        start_date = today - timedelta(days=30)
+        period_display = "1 oy"
+    elif period == 'quarter':
+        start_date = today - timedelta(days=90)
+        period_display = "3 oy"
+    elif period == 'year':
+        start_date = today - timedelta(days=365)
+        period_display = "1 yil"
+    else:
+        start_date = today - timedelta(days=30)
+        period_display = "1 oy"
+
+    # Get attendance records for period
+    attendance_records = Attendance.objects.filter(
+        student=student,
+        date__gte=start_date,
+        date__lte=today
+    )
+
+    # Overall statistics
+    total = attendance_records.count()
+    present = attendance_records.filter(status='present').count()
+    absent = attendance_records.filter(status='absent').count()
+    late = attendance_records.filter(status='late').count()
+    excused = attendance_records.filter(status='excused').count()
+
+    percentage = round((present / total * 100) if total > 0 else 0, 1)
+    present_percentage = round((present / total * 100) if total > 0 else 0, 1)
+    absent_percentage = round((absent / total * 100) if total > 0 else 0, 1)
+    late_percentage = round((late / total * 100) if total > 0 else 0, 1)
+
+    # Subject-wise statistics
+    subject_stats = []
+    best_subject = None
+    worst_subject = None
+
+    if student_class:
+        subjects = Subject.objects.filter(classes=student_class)
+
+        for subject in subjects:
+            subject_attendance = attendance_records.filter(subject=subject)
+            subject_total = subject_attendance.count()
+            subject_present = subject_attendance.filter(status='present').count()
+
+            subject_percentage = round((subject_present / subject_total * 100) if subject_total > 0 else 0, 1)
+
+            subject_stats.append({
+                'id': subject.id,
+                'name': subject.name,
+                'total': subject_total,
+                'present': subject_present,
+                'percentage': subject_percentage,
+                'teacher': subject.teacher.get_full_name() if subject.teacher else 'Tayinlanmagan',
+            })
+
+        # Sort by percentage and find best/worst
+        if subject_stats:
+            subject_stats.sort(key=lambda x: x['percentage'], reverse=True)
+            best_subject = subject_stats[0]
+            worst_subject = subject_stats[-1]
+
+    # Monthly trend data
+    monthly_trend = []
+    for i in range(5, -1, -1):
+        month_date = today - timedelta(days=30 * i)
+        month_start = month_date.replace(day=1)
+        if i == 0:
+            month_end = today
+        else:
+            next_month = month_start + timedelta(days=32)
+            month_end = next_month.replace(day=1) - timedelta(days=1)
+
+        month_records = Attendance.objects.filter(
+            student=student,
+            date__gte=month_start,
+            date__lte=month_end
+        )
+
+        month_total = month_records.count()
+        month_present = month_records.filter(status='present').count()
+        month_percentage = round((month_present / month_total * 100) if month_total > 0 else 0, 1)
+
+        monthly_trend.append({
+            'month': month_start.strftime('%b %Y'),
+            'percentage': month_percentage,
+            'total': month_total,
+            'present': month_present,
+        })
+
+    # Status distribution
+    status_distribution = {
+        'present': present,
+        'absent': absent,
+        'late': late,
+        'excused': excused,
+    }
+
+    # Calculate average daily attendance
+    days_count = (today - start_date).days + 1
+    avg_daily = round(percentage, 1)
+
+    # Calculate streak (consecutive days with attendance)
+    streak_days = 0
+    current_date = today
+    while True:
+        day_attendance = Attendance.objects.filter(
+            student=student,
+            date=current_date,
+            status='present'
+        ).exists()
+
+        if day_attendance:
+            streak_days += 1
+            current_date -= timedelta(days=1)
+        else:
+            break
+
+    # Daily breakdown for last 7 days
+    daily_breakdown = []
+    for i in range(6, -1, -1):
+        day_date = today - timedelta(days=i)
+        day_records = attendance_records.filter(date=day_date)
+        day_total = day_records.count()
+        day_present = day_records.filter(status='present').count()
+        day_percentage = round((day_present / day_total * 100) if day_total > 0 else 0, 1)
+
+        daily_breakdown.append({
+            'date': day_date.strftime('%d.%m'),
+            'day': day_date.strftime('%A'),
+            'total': day_total,
+            'present': day_present,
+            'percentage': day_percentage,
+        })
+
+    context = {
+        'period': period,
+        'period_display': period_display,
+        'total': total,
+        'present': present,
+        'absent': absent,
+        'late': late,
+        'excused': excused,
+        'percentage': percentage,
+        'present_percentage': present_percentage,
+        'absent_percentage': absent_percentage,
+        'late_percentage': late_percentage,
+        'subject_stats': subject_stats,
+        'best_subject': best_subject,
+        'worst_subject': worst_subject,
+        'monthly_trend': monthly_trend,
+        'status_distribution': status_distribution,
+        'avg_daily': avg_daily,
+        'streak_days': streak_days,
+        'daily_breakdown': daily_breakdown,
+        'start_date': start_date,
+        'end_date': today,
+    }
+
+    return render(request, 'attendance/student_statistics.html', context)
+
+
+# Update the student_profile function in views.py
+from django.utils import timezone
+from datetime import datetime, timedelta
+
+
+@login_required
+def student_profile(request):
+    """Student profile page"""
+    if not hasattr(request.user, 'profile') or request.user.profile.role != 'student':
+        messages.error(request, "Sizda o'quvchi huquqlari yo'q!")
+        return redirect('login')
+
+    student = request.user
+    profile = student.profile
+    student_class = profile.student_class
+
+    # Calculate statistics
+    attendance_records = Attendance.objects.filter(student=student)
+    total_attendance = attendance_records.count()
+    present_attendance = attendance_records.filter(status='present').count()
+    absent_attendance = attendance_records.filter(status='absent').count()
+    late_attendance = attendance_records.filter(status='late').count()
+
+    # Calculate percentages
+    attendance_percentage = 0
+    present_percentage = 0
+    absent_percentage = 0
+    late_percentage = 0
+
+    if total_attendance > 0:
+        attendance_percentage = round((present_attendance / total_attendance) * 100, 1)
+        present_percentage = round((present_attendance / total_attendance) * 100, 1)
+        absent_percentage = round((absent_attendance / total_attendance) * 100, 1)
+        late_percentage = round((late_attendance / total_attendance) * 100, 1)
+
+    # Get subject statistics
+    subject_stats = []
+    if student_class:
+        subjects = Subject.objects.filter(classes=student_class)
+
+        for subject in subjects:
+            subject_attendance = attendance_records.filter(subject=subject)
+            total = subject_attendance.count()
+            present = subject_attendance.filter(status='present').count()
+            percentage = round((present / total * 100) if total > 0 else 0, 1)
+
+            subject_stats.append({
+                'name': subject.name,
+                'teacher': subject.teacher.get_full_name() if subject.teacher else 'Tayinlanmagan',
+                'total': total,
+                'present': present,
+                'percentage': percentage,
+            })
+
+    # Get recent activity (last 10 attendance records)
+    recent_activity = []
+    recent_attendance = Attendance.objects.filter(
+        student=student
+    ).select_related('subject').order_by('-date', '-created_at')[:10]
+
+    for att in recent_attendance:
+        if att.status == 'present':
+            color = 'success'
+            title = 'Davomat qayd etildi'
+            desc = f"{att.subject.name} darsida qatnashdingiz"
+        elif att.status == 'absent':
+            color = 'danger'
+            title = 'Davomatda yo\'q'
+            desc = f"{att.subject.name} darsida qatnashmadingiz"
+        elif att.status == 'late':
+            color = 'warning'
+            title = 'Kechikdingiz'
+            desc = f"{att.subject.name} darsiga kechikdingiz"
+        else:
+            color = 'info'
+            title = 'Sababli qatnashmadingiz'
+            desc = f"{att.subject.name} darsida sababli qatnashmadingiz"
+
+        recent_activity.append({
+            'title': title,
+            'description': desc,
+            'time': att.created_at.strftime('%H:%M'),
+            'date': att.date.strftime('%d.%m.%Y'),
+            'color': color,
+            'subject': att.subject.name,
+        })
+
+    context = {
+        'student': student,
+        'profile': profile,
+        'student_class': student_class,
+        'attendance_percentage': attendance_percentage,
+        'total_attendance': total_attendance,
+        'present_attendance': present_attendance,
+        'absent_attendance': absent_attendance,
+        'late_attendance': late_attendance,
+        'present_percentage': present_percentage,
+        'absent_percentage': absent_percentage,
+        'late_percentage': late_percentage,
+        'subject_stats': subject_stats,
+        'recent_activity': recent_activity,
+    }
+
+    return render(request, 'attendance/student_profile.html', context)

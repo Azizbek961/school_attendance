@@ -1,0 +1,720 @@
+<!-- attendance/templates/attendance/student_profile.html -->
+{% extends 'attendance/student_base.html' %}
+
+{% block title %}Profil - O'quvchi Paneli{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-user text-primary me-2"></i>Mening Profilim</h1>
+            <p class="text-muted mb-0">Shaxsiy ma'lumotlar va statistika</p>
+        </div>
+        <div>
+            <button class="btn btn-primary" onclick="editProfile()">
+                <i class="fas fa-edit me-1"></i>Profilni tahrirlash
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column: Profile Information -->
+        <div class="col-lg-4 col-xl-3 mb-4">
+            <!-- Profile Card -->
+            <div class="dashboard-card text-center">
+                <div class="profile-image-container mb-4">
+                    <div class="profile-avatar mx-auto mb-3">
+                        <img src="https://ui-avatars.com/api/?name={{ student.get_full_name|urlencode }}&background=4361ee&color=fff&size=150"
+                             alt="Profile" class="rounded-circle img-fluid border border-4 border-primary"
+                             style="width: 150px; height: 150px; object-fit: cover;">
+                    </div>
+                    <div class="position-relative d-inline-block">
+                        <button class="btn btn-sm btn-outline-primary btn-icon" onclick="changeProfileImage()"
+                                data-bs-toggle="tooltip" title="Rasmni o'zgartirish">
+                            <i class="fas fa-camera"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <h3 class="mb-1">{{ student.get_full_name }}</h3>
+                <p class="text-muted mb-3">
+                    <i class="fas fa-graduation-cap me-1"></i>
+                    {{ student_class.name|default:"Sinf tayinlanmagan" }}
+                </p>
+
+                <div class="d-flex justify-content-center mb-3">
+                    <span class="badge bg-primary me-2">
+                        <i class="fas fa-user-graduate me-1"></i>O'quvchi
+                    </span>
+                    <span class="badge bg-success">
+                        ID: {{ student.id|stringformat:"06d" }}
+                    </span>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="row mt-4">
+                    <div class="col-6">
+                        <div class="stat-card">
+                            <div class="stat-number text-primary">{{ attendance_percentage }}%</div>
+                            <div class="text-muted small">Davomat</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-card">
+                            <div class="stat-number text-success">{{ subject_stats|length }}</div>
+                            <div class="text-muted small">Fanlar</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Info -->
+                <div class="mt-4 pt-3 border-top">
+                    <h6 class="mb-3"><i class="fas fa-address-card me-2"></i>Aloqa ma'lumotlari</h6>
+                    <div class="text-start">
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="me-3 text-primary">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                            <div>
+                                <small class="text-muted d-block">Email</small>
+                                <span>{{ student.email|default:"Email kiritilmagan" }}</span>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="me-3 text-primary">
+                                <i class="fas fa-phone"></i>
+                            </div>
+                            <div>
+                                <small class="text-muted d-block">Telefon</small>
+                                <span>{{ profile.phone|default:"Telefon kiritilmagan" }}</span>
+                            </div>
+                        </div>
+                        {% if profile.birth_date %}
+                        <div class="d-flex align-items-center">
+                            <div class="me-3 text-primary">
+                                <i class="fas fa-birthday-cake"></i>
+                            </div>
+                            <div>
+                                <small class="text-muted d-block">Tug'ilgan sana</small>
+                                <span>{{ profile.birth_date|date:"d.m.Y" }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Class Information -->
+            {% if student_class %}
+            <div class="dashboard-card mt-4">
+                <h6 class="mb-3"><i class="fas fa-school me-2"></i>Sinf ma'lumotlari</h6>
+                <div class="list-group list-group-flush">
+                    <div class="list-group-item px-0 d-flex justify-content-between">
+                        <span>Sinf nomi:</span>
+                        <strong>{{ student_class.name }}</strong>
+                    </div>
+                    <div class="list-group-item px-0 d-flex justify-content-between">
+                        <span>Sinf rahbari:</span>
+                        <strong>{{ student_class.teacher.get_full_name|default:"Tayinlanmagan" }}</strong>
+                    </div>
+                    <div class="list-group-item px-0 d-flex justify-content-between">
+                        <span>Xona:</span>
+                        <strong>{{ student_class.room|default:"Xona yo'q" }}</strong>
+                    </div>
+                    <div class="list-group-item px-0">
+                        <small class="text-muted">Sinfga qo'shilgan:</small>
+                        <div>{{ student_class.created_at|date:"d.m.Y" }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Column: Statistics and Details -->
+        <div class="col-lg-8 col-xl-9">
+            <!-- Attendance Overview -->
+            <div class="dashboard-card mb-4">
+                <h5 class="mb-4"><i class="fas fa-chart-line text-primary me-2"></i>Davomat Ko'rinishi</h5>
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="chart-container" style="position: relative; height: 200px;">
+                            <canvas id="attendanceOverviewChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="progress flex-grow-1" style="height: 20px;">
+                                <div class="progress-bar bg-success" role="progressbar"
+                                     style="width: {{ present_percentage|default:0 }}%;"
+                                     aria-valuenow="{{ present_percentage|default:0 }}"
+                                     aria-valuemin="0"
+                                     aria-valuemax="100">
+                                    {{ present_percentage|default:0 }}%
+                                </div>
+                            </div>
+                            <div class="ms-3 text-end" style="min-width: 100px;">
+                                <div class="fw-bold">{{ present_attendance }}</div>
+                                <small class="text-muted">Qatnashgan</small>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="progress flex-grow-1" style="height: 20px;">
+                                <div class="progress-bar bg-danger" role="progressbar"
+                                     style="width: {{ absent_percentage|default:0 }}%;"
+                                     aria-valuenow="{{ absent_percentage|default:0 }}"
+                                     aria-valuemin="0"
+                                     aria-valuemax="100">
+                                    {{ absent_percentage|default:0 }}%
+                                </div>
+                            </div>
+                            <div class="ms-3 text-end" style="min-width: 100px;">
+                                <div class="fw-bold">{{ absent_attendance|default:0 }}</div>
+                                <small class="text-muted">Qatnashmagan</small>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div class="progress flex-grow-1" style="height: 20px;">
+                                <div class="progress-bar bg-warning" role="progressbar"
+                                     style="width: {{ late_percentage|default:0 }}%;"
+                                     aria-valuenow="{{ late_percentage|default:0 }}"
+                                     aria-valuemin="0"
+                                     aria-valuemax="100">
+                                    {{ late_percentage|default:0 }}%
+                                </div>
+                            </div>
+                            <div class="ms-3 text-end" style="min-width: 100px;">
+                                <div class="fw-bold">{{ late_attendance|default:0 }}</div>
+                                <small class="text-muted">Kechikkan</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-4">
+                    <div class="col-md-3 col-6 text-center">
+                        <div class="p-3 bg-primary bg-opacity-10 rounded">
+                            <div class="h4 text-primary mb-1">{{ total_attendance }}</div>
+                            <small class="text-muted">Jami darslar</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6 text-center">
+                        <div class="p-3 bg-success bg-opacity-10 rounded">
+                            <div class="h4 text-success mb-1">{{ present_attendance }}</div>
+                            <small class="text-muted">Qatnashgan</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6 text-center">
+                        <div class="p-3 bg-danger bg-opacity-10 rounded">
+                            <div class="h4 text-danger mb-1">{{ absent_attendance|default:0 }}</div>
+                            <small class="text-muted">Qatnashmagan</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-6 text-center">
+                        <div class="p-3 bg-warning bg-opacity-10 rounded">
+                            <div class="h4 text-warning mb-1">{{ late_attendance|default:0 }}</div>
+                            <small class="text-muted">Kechikkan</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Subject-wise Performance -->
+            <div class="dashboard-card mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="mb-0"><i class="fas fa-book text-primary me-2"></i>Fanlar Bo'yicha Davomat</h5>
+                    <button class="btn btn-sm btn-outline-primary" onclick="exportSubjectStats()">
+                        <i class="fas fa-download me-1"></i>Eksport qilish
+                    </button>
+                </div>
+
+                {% if subject_stats %}
+                <div class="table-responsive">
+                    <table class="table custom-table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Fan</th>
+                                <th>O'qituvchi</th>
+                                <th>Qatnashgan</th>
+                                <th>Jami</th>
+                                <th>Foiz</th>
+                                <th>Holat</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for subject in subject_stats %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="subject-icon me-3">
+                                            <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center"
+                                                 style="width: 40px; height: 40px;">
+                                                <i class="fas fa-book"></i>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <strong>{{ subject.name }}</strong>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ subject.teacher|default:"Tayinlanmagan" }}</td>
+                                <td>{{ subject.present }}</td>
+                                <td>{{ subject.total }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="progress flex-grow-1 me-2" style="height: 6px;">
+                                            <div class="progress-bar {% if subject.percentage >= 90 %}bg-success{% elif subject.percentage >= 70 %}bg-info{% elif subject.percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                                                 role="progressbar"
+                                                 style="width: {{ subject.percentage }}%;"
+                                                 aria-valuenow="{{ subject.percentage }}"
+                                                 aria-valuemin="0"
+                                                 aria-valuemax="100"></div>
+                                        </div>
+                                        <span>{{ subject.percentage }}%</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge {% if subject.percentage >= 90 %}bg-success{% elif subject.percentage >= 70 %}bg-info{% elif subject.percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}">
+                                        {% if subject.percentage >= 90 %}
+                                        A'lo
+                                        {% elif subject.percentage >= 70 %}
+                                        Yaxshi
+                                        {% elif subject.percentage >= 50 %}
+                                        Qoniqarli
+                                        {% else %}
+                                        Qoniqarsiz
+                                        {% endif %}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <div class="text-muted mb-3">
+                        <i class="fas fa-book fa-3x opacity-25"></i>
+                    </div>
+                    <h5 class="text-muted">Fanlar ma'lumotlari mavjud emas</h5>
+                    <p class="text-muted">Sizga hali fanlar tayinlanmagan yoki davomat ma'lumotlari yo'q</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="dashboard-card">
+                <h5 class="mb-4"><i class="fas fa-history text-primary me-2"></i>Oxirgi Faoliyat</h5>
+                <div class="timeline">
+                    {% for activity in recent_activity|slice:":5" %}
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-{{ activity.color|default:'primary' }}"></div>
+                        <div class="timeline-content">
+                            <div class="d-flex justify-content-between">
+                                <h6 class="mb-1">{{ activity.title }}</h6>
+                                <small class="text-muted">{{ activity.time }}</small>
+                            </div>
+                            <p class="mb-0 text-muted">{{ activity.description }}</p>
+                            {% if activity.subject %}
+                            <span class="badge bg-light text-dark mt-1">{{ activity.subject }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-4">
+                        <div class="text-muted">
+                            <i class="fas fa-info-circle fa-2x mb-3"></i>
+                            <p>Hozircha faoliyat mavjud emas</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if recent_activity|length > 5 %}
+                <div class="text-center mt-3">
+                    <button class="btn btn-sm btn-outline-primary" onclick="viewAllActivity()">
+                        Barcha faoliyatni ko'rish
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div class="modal fade" id="editProfileModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Profilni tahrirlash</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="profileForm" method="POST" action="{% url 'student_settings' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Ism</label>
+                            <input type="text" class="form-control" name="first_name" value="{{ student.first_name }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Familiya</label>
+                            <input type="text" class="form-control" name="last_name" value="{{ student.last_name }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="email" value="{{ student.email|default:'' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Telefon</label>
+                            <input type="tel" class="form-control" name="phone" value="{{ profile.phone|default:'' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Tug'ilgan sana</label>
+                            <input type="date" class="form-control" name="birth_date"
+                                   value="{{ profile.birth_date|date:'Y-m-d'|default:'' }}">
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <h6 class="mb-3">Parolni o'zgartirish</h6>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Joriy parol</label>
+                            <input type="password" class="form-control" name="current_password">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Yangi parol</label>
+                            <input type="password" class="form-control" name="new_password">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Parolni tasdiqlash</label>
+                            <input type="password" class="form-control" name="confirm_password">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bekor qilish</button>
+                    <button type="submit" class="btn btn-primary">Saqlash</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.profile-avatar {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    margin: 0 auto;
+}
+
+.btn-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Timeline styling */
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline-item {
+    position: relative;
+    padding-bottom: 20px;
+    padding-left: 20px;
+    border-left: 2px solid #e9ecef;
+}
+
+.timeline-item:last-child {
+    padding-bottom: 0;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -9px;
+    top: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 3px solid #fff;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+/* Progress bar customization */
+.progress {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    border-radius: 10px;
+}
+
+/* Subject icon */
+.subject-icon {
+    flex-shrink: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .profile-avatar {
+        width: 100px;
+        height: 100px;
+    }
+
+    .timeline {
+        padding-left: 20px;
+    }
+
+    .stat-number {
+        font-size: 1.5rem;
+    }
+
+    .btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .dashboard-card {
+        padding: 15px;
+    }
+
+    h3 {
+        font-size: 1.5rem;
+    }
+
+    .modal-dialog {
+        margin: 10px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize attendance chart
+    initializeAttendanceChart();
+
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+
+let attendanceChart = null;
+
+function initializeAttendanceChart() {
+    const ctx = document.getElementById('attendanceOverviewChart').getContext('2d');
+
+    if (attendanceChart) {
+        attendanceChart.destroy();
+    }
+
+    // Sample data - in real app, fetch from API
+    const data = {
+        labels: ['Dush', 'Sesh', 'Chor', 'Pay', 'Jum', 'Shan'],
+        datasets: [{
+            label: 'Davomat foizi',
+            data: [85, 90, 75, 95, 80, 70],
+            borderColor: chartColors.primary,
+            backgroundColor: 'rgba(67, 97, 238, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4
+        }]
+    };
+
+    attendanceChart = new Chart(ctx, {
+        type: 'line',
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function editProfile() {
+    const modal = new bootstrap.Modal(document.getElementById('editProfileModal'));
+    modal.show();
+}
+
+function changeProfileImage() {
+    // Create file input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+
+    input.onchange = function(event) {
+        const file = event.target.files[0];
+        if (file) {
+            // Show loading
+            const avatar = document.querySelector('.profile-avatar img');
+            const originalSrc = avatar.src;
+            avatar.src = URL.createObjectURL(file);
+
+            // Here you would upload the image to server
+            // For now, we'll simulate upload
+            setTimeout(() => {
+                alert('Profil rasmi muvaffaqiyatli yangilandi!');
+                // In real app, update the image source from server response
+            }, 1000);
+        }
+    };
+
+    input.click();
+}
+
+function exportSubjectStats() {
+    // Prepare data for export
+    const data = {
+        student: '{{ student.get_full_name }}',
+        class: '{{ student_class.name|default:"N/A" }}',
+        export_date: new Date().toLocaleDateString('uz-UZ'),
+        subjects: [
+            {% for subject in subject_stats %}
+            {
+                name: '{{ subject.name }}',
+                teacher: '{{ subject.teacher|default:"N/A" }}',
+                present: {{ subject.present }},
+                total: {{ subject.total }},
+                percentage: {{ subject.percentage }}
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ]
+    };
+
+    // Convert to JSON and download
+    const dataStr = JSON.stringify(data, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+
+    const exportFileDefaultName = `fan_statistikasi_{{ student.username }}.json`;
+
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+
+    // Show success message
+    showToast('Muvaffaqiyatli', 'Fan statistikasi yuklab olindi!', 'success');
+}
+
+function viewAllActivity() {
+    window.location.href = '{% url "student_attendance_history" %}';
+}
+
+function showToast(title, message, type) {
+    // Create toast element
+    const toastId = 'toast-' + Date.now();
+    const toastHtml = `
+        <div class="toast align-items-center text-white bg-${type} border-0"
+             id="${toastId}" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <strong>${title}</strong><br>
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                        data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    `;
+
+    // Add to toast container
+    const container = document.querySelector('.toast-container');
+    if (!container) {
+        const newContainer = document.createElement('div');
+        newContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        document.body.appendChild(newContainer);
+        newContainer.innerHTML = toastHtml;
+    } else {
+        container.innerHTML = toastHtml;
+    }
+
+    // Show toast
+    const toastEl = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastEl);
+    toast.show();
+}
+
+// Handle form submission
+document.getElementById('profileForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+
+    fetch(this.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Muvaffaqiyatli', 'Profil yangilandi!', 'success');
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            showToast('Xatolik', data.message || 'Profil yangilashda xatolik yuz berdi', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Xatolik', 'Server bilan aloqa uzildi', 'danger');
+    });
+});
+
+// Handle window resize for responsive charts
+window.addEventListener('resize', function() {
+    if (attendanceChart) {
+        attendanceChart.resize();
+    }
+});
+</script>
+{% endblock %}

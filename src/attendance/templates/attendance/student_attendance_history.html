@@ -1,0 +1,231 @@
+{% extends 'attendance/student_base.html' %}
+
+{% block title %}Mening Davotatim - O'quvchi Paneli{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="mb-3">Mening Davotatim</h2>
+        <p class="text-muted">Barcha davomat yozuvlaringizning tarixi</p>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="dashboard-card">
+            <div class="d-flex align-items-center">
+                <div class="card-icon attendance-present me-3">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                <div>
+                    <h3 class="stat-number">{{ present_count }}</h3>
+                    <p class="text-muted mb-0">Qatnashgan</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="dashboard-card">
+            <div class="d-flex align-items-center">
+                <div class="card-icon attendance-absent me-3">
+                    <i class="fas fa-user-times"></i>
+                </div>
+                <div>
+                    <h3 class="stat-number">{{ absent_count }}</h3>
+                    <p class="text-muted mb-0">Qatnashmagan</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="dashboard-card">
+            <div class="d-flex align-items-center">
+                <div class="card-icon attendance-late me-3">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div>
+                    <h3 class="stat-number">{{ late_count }}</h3>
+                    <p class="text-muted mb-0">Kechikkan</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+        <div class="dashboard-card">
+            <div class="d-flex align-items-center">
+                <div class="card-icon" style="background-color: rgba(108, 117, 125, 0.1); color: #6c757d;" class="me-3">
+                    <i class="fas fa-user-clock"></i>
+                </div>
+                <div>
+                    <h3 class="stat-number">{{ excused_count }}</h3>
+                    <p class="text-muted mb-0">Sababli</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <h5 class="mb-3">Filtrlar</h5>
+            <form method="GET" id="filterForm">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Dan</label>
+                        <input type="date" class="form-control" name="date_from" value="{{ date_from }}">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Gacha</label>
+                        <input type="date" class="form-control" name="date_to" value="{{ date_to }}">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Fan</label>
+                        <select class="form-control" name="subject">
+                            <option value="">Barcha fanlar</option>
+                            {% for subject in subjects %}
+                            <option value="{{ subject.id }}" {% if subject_id|stringformat:"s" == subject.id|stringformat:"s" %}selected{% endif %}>
+                                {{ subject.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Holat</label>
+                        <select class="form-control" name="status">
+                            <option value="">Barcha holatlar</option>
+                            <option value="present" {% if status_filter == 'present' %}selected{% endif %}>Qatnashgan</option>
+                            <option value="absent" {% if status_filter == 'absent' %}selected{% endif %}>Qatnashmagan</option>
+                            <option value="late" {% if status_filter == 'late' %}selected{% endif %}>Kechikkan</option>
+                            <option value="excused" {% if status_filter == 'excused' %}selected{% endif %}>Sababli</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-filter me-1"></i> Filtrlash
+                    </button>
+                    <a href="{% url 'student_attendance_history' %}" class="btn btn-secondary">
+                        <i class="fas fa-times me-1"></i> Tozalash
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Attendance Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="dashboard-card">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="mb-0">Davomat yozuvlari ({{ total_records }} ta)</h5>
+                <div>
+                    <span class="badge bg-success me-2">{{ monthly_percentage }}% (bu oy)</span>
+                    <button class="btn btn-outline-primary btn-sm" onclick="exportToExcel()">
+                        <i class="fas fa-download me-1"></i> Export
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table custom-table">
+                    <thead>
+                        <tr>
+                            <th>Sana</th>
+                            <th>Fan</th>
+                            <th>O'qituvchi</th>
+                            <th>Holat</th>
+                            <th>Izoh</th>
+                            <th>Vaqt</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in attendance_records %}
+                        <tr>
+                            <td>{{ record.date|date:"d.m.Y" }}</td>
+                            <td>{{ record.subject.name }}</td>
+                            <td>{{ record.teacher.get_full_name|default:record.teacher.username }}</td>
+                            <td>
+                                {% if record.status == 'present' %}
+                                    <span class="status-badge status-present">Qatnashdi</span>
+                                {% elif record.status == 'absent' %}
+                                    <span class="status-badge status-absent">Qatnashmadi</span>
+                                {% elif record.status == 'late' %}
+                                    <span class="status-badge status-late">Kechikdi</span>
+                                {% elif record.status == 'excused' %}
+                                    <span class="status-badge status-excused">Sababli</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ record.notes|default:"-" }}</td>
+                            <td>{{ record.created_at|time:"H:i" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="fas fa-clipboard-list fa-2x mb-3"></i>
+                                    <p>Davomat yozuvlari topilmadi</p>
+                                    <p class="small">Filtr parametrlarini o'zgartirib ko'ring</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if attendance_records.has_other_pages %}
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    {% if attendance_records.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ attendance_records.previous_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if subject_id %}&subject={{ subject_id }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in attendance_records.paginator.page_range %}
+                        {% if attendance_records.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                        {% elif num > attendance_records.number|add:'-3' and num < attendance_records.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if subject_id %}&subject={{ subject_id }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">{{ num }}</a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if attendance_records.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ attendance_records.next_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if subject_id %}&subject={{ subject_id }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function exportToExcel() {
+        // Implement Excel export functionality
+        alert('Excel fayl yuklanmoqda...');
+        // In real app, you would redirect to export endpoint
+
+    }
+</script>
+{% endblock %}

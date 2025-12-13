@@ -1,0 +1,779 @@
+<!-- attendance/templates/attendance/student_statistics.html -->
+{% extends 'attendance/student_base.html' %}
+
+{% block title %}Statistika - O'quvchi Paneli{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-chart-line text-primary me-2"></i>Mening Statistikam</h1>
+            <p class="text-muted mb-0">Davomat statistikangiz va tahlillar</p>
+        </div>
+        <div class="d-flex">
+            <!-- Period Filter -->
+            <div class="me-2">
+                <select class="form-select form-select-sm" id="periodFilter" onchange="changePeriod(this.value)">
+                    <option value="week" {% if period == 'week' %}selected{% endif %}>1 hafta</option>
+                    <option value="month" {% if period == 'month' %}selected{% endif %}>1 oy</option>
+                    <option value="quarter" {% if period == 'quarter' %}selected{% endif %}>3 oy</option>
+                    <option value="year" {% if period == 'year' %}selected{% endif %}>1 yil</option>
+                </select>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="refreshStatistics()">
+                <i class="fas fa-sync-alt me-1"></i>Yangilash
+            </button>
+        </div>
+    </div>
+
+    <!-- Date Range Display -->
+    <div class="alert alert-info py-2">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <i class="fas fa-calendar-alt me-2"></i>
+                <strong>Davr:</strong> {{ start_date|date:"d.m.Y" }} - {{ end_date|date:"d.m.Y" }}
+            </div>
+            <div>
+                <span class="badge bg-primary">{{ period_display|default:"1 oy" }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="dashboard-card h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="card-icon bg-primary bg-opacity-10 text-primary">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <h6 class="text-muted mb-2">Umumiy davomat</h6>
+                        <h2 class="mb-0">{{ percentage }}%</h2>
+                    </div>
+                    <div class="text-end">
+                        <div class="text-success small">
+                            <i class="fas fa-arrow-up me-1"></i>
+                            {{ present }}/{{ total }}
+                        </div>
+                        <div class="text-muted small">Qatnashgan/Kutilgan</div>
+                    </div>
+                </div>
+                <div class="progress mt-3" style="height: 8px;">
+                    <div class="progress-bar bg-primary" role="progressbar"
+                         style="width: {{ percentage }}%;"
+                         aria-valuenow="{{ percentage }}"
+                         aria-valuemin="0"
+                         aria-valuemax="100"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="dashboard-card h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="card-icon bg-success bg-opacity-10 text-success">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <h6 class="text-muted mb-2">Qatnashgan</h6>
+                        <h2 class="mb-0">{{ present }}</h2>
+                    </div>
+                    <div class="text-end">
+                        <div class="text-success">
+                            <i class="fas fa-chart-line me-1"></i>
+                            {{ present_percentage|default:100 }}%
+                        </div>
+                    </div>
+                </div>
+                <p class="text-muted small mb-0">Muvaffaqiyatli qatnashgan darslar</p>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="dashboard-card h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="card-icon bg-danger bg-opacity-10 text-danger">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <h6 class="text-muted mb-2">Qatnashmagan</h6>
+                        <h2 class="mb-0">{{ absent }}</h2>
+                    </div>
+                    <div class="text-end">
+                        <div class="text-danger">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            {{ absent_percentage|default:0 }}%
+                        </div>
+                    </div>
+                </div>
+                <p class="text-muted small mb-0">Qatnashilmagan darslar</p>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="dashboard-card h-100">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="card-icon bg-warning bg-opacity-10 text-warning">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <h6 class="text-muted mb-2">Kechikkan</h6>
+                        <h2 class="mb-0">{{ late }}</h2>
+                    </div>
+                    <div class="text-end">
+                        <div class="text-warning">
+                            <i class="fas fa-history me-1"></i>
+                            {{ late_percentage|default:0 }}%
+                        </div>
+                    </div>
+                </div>
+                <p class="text-muted small mb-0">Kechikib qatnashgan darslar</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="row mb-4">
+        <!-- Overall Attendance Chart -->
+        <div class="col-xl-8 col-lg-7 mb-4">
+            <div class="dashboard-card h-100">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar text-primary me-2"></i>Davomat Trendi</h5>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-primary active" onclick="changeChartType('weekly')">Haftalik</button>
+                        <button type="button" class="btn btn-outline-primary" onclick="changeChartType('monthly')">Oylik</button>
+                    </div>
+                </div>
+                <div class="chart-container" style="position: relative; height: 300px;">
+                    <canvas id="attendanceTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Distribution Pie Chart -->
+        <div class="col-xl-4 col-lg-5 mb-4">
+            <div class="dashboard-card h-100">
+                <h5 class="mb-4"><i class="fas fa-chart-pie text-primary me-2"></i>Holatlar Bo'yicha Taqsimot</h5>
+                <div class="chart-container" style="position: relative; height: 250px;">
+                    <canvas id="statusDistributionChart"></canvas>
+                </div>
+                <div class="row mt-4">
+                    <div class="col-6 text-center">
+                        <div class="status-indicator present mb-2"></div>
+                        <small class="text-muted">Qatnashgan: {{ present }}</small>
+                    </div>
+                    <div class="col-6 text-center">
+                        <div class="status-indicator absent mb-2"></div>
+                        <small class="text-muted">Qatnashmagan: {{ absent }}</small>
+                    </div>
+                    <div class="col-6 text-center mt-3">
+                        <div class="status-indicator late mb-2"></div>
+                        <small class="text-muted">Kechikkan: {{ late }}</small>
+                    </div>
+                    <div class="col-6 text-center mt-3">
+                        <div class="status-indicator excused mb-2"></div>
+                        <small class="text-muted">Sababli: {{ excused }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subject-wise Statistics -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="dashboard-card">
+                <h5 class="mb-4"><i class="fas fa-book text-primary me-2"></i>Fanlar Bo'yicha Davomat</h5>
+                <div class="table-responsive">
+                    <table class="table custom-table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Fan nomi</th>
+                                <th>O'qituvchi</th>
+                                <th>Jami dars</th>
+                                <th>Qatnashgan</th>
+                                <th>Foiz</th>
+                                <th>Progress</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for subject in subject_stats %}
+                            <tr>
+                                <td>
+                                    <strong>{{ subject.name }}</strong>
+                                </td>
+                                <td>{{ subject.teacher }}</td>
+                                <td>{{ subject.total }}</td>
+                                <td>{{ subject.present }}</td>
+                                <td>
+                                    <span class="badge bg-{% if subject.percentage >= 90 %}success{% elif subject.percentage >= 70 %}info{% elif subject.percentage >= 50 %}warning{% else %}danger{% endif %}">
+                                        {{ subject.percentage }}%
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="progress" style="height: 6px; width: 100px;">
+                                        <div class="progress-bar bg-{% if subject.percentage >= 90 %}success{% elif subject.percentage >= 70 %}info{% elif subject.percentage >= 50 %}warning{% else %}danger{% endif %}"
+                                             role="progressbar"
+                                             style="width: {{ subject.percentage }}%;"
+                                             aria-valuenow="{{ subject.percentage }}"
+                                             aria-valuemin="0"
+                                             aria-valuemax="100"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4">
+                                    <div class="text-muted">
+                                        <i class="fas fa-info-circle fa-2x mb-3"></i>
+                                        <p>Hozircha ma'lumotlar mavjud emas</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Trend and Detailed Stats -->
+    <div class="row">
+        <!-- Monthly Attendance Trend -->
+        <div class="col-lg-8 mb-4">
+            <div class="dashboard-card h-100">
+                <h5 class="mb-4"><i class="fas fa-calendar-alt text-primary me-2"></i>Oylik Davomat Trendi</h5>
+                <div class="chart-container" style="position: relative; height: 250px;">
+                    <canvas id="monthlyTrendChart"></canvas>
+                </div>
+                <div class="row mt-4">
+                    {% for month in monthly_trend %}
+                    <div class="col-md-4 mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3">
+                                <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center"
+                                     style="width: 40px; height: 40px;">
+                                    {{ month.percentage }}%
+                                </div>
+                            </div>
+                            <div>
+                                <div class="small text-muted">{{ month.month }}</div>
+                                <div class="fw-bold">{{ month.present }}/{{ month.total }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="col-lg-4 mb-4">
+            <div class="dashboard-card h-100">
+                <h5 class="mb-4"><i class="fas fa-chart-area text-primary me-2"></i>Statistika Ma'lumotlari</h5>
+
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">O'rtacha kunlik davomat:</span>
+                        <span class="fw-bold">{{ avg_daily|default:"0" }}%</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Eng yaxshi fan:</span>
+                        <span class="fw-bold text-success">{{ best_subject.name|default:"-" }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Eng past fan:</span>
+                        <span class="fw-bold text-danger">{{ worst_subject.name|default:"-" }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Davomlilik ketma-ketligi:</span>
+                        <span class="fw-bold">{{ streak_days|default:"0" }} kun</span>
+                    </div>
+                </div>
+
+                <div class="alert alert-warning">
+                    <div class="d-flex">
+                        <div class="me-3">
+                            <i class="fas fa-lightbulb fa-2x"></i>
+                        </div>
+                        <div>
+                            <h6 class="alert-heading">Tavsiya</h6>
+                            <p class="mb-0 small">
+                                {% if percentage >= 90 %}
+                                Ajoyib! Davomliligingiz juda yuqori. Davom eting!
+                                {% elif percentage >= 70 %}
+                                Yaxshi ishlanyapsiz. Yana bir oz harakat qilsangiz yaxshi natijalarga erishasiz.
+                                {% elif percentage >= 50 %}
+                                Diqqat! Davomliligingiz o'rtacha. Darslarga muntazam qatnashishga harakat qiling.
+                                {% else %}
+                                Ogohlantirish! Davomliligingiz past. Ota-onalaringizga ma'lumot berilishi mumkin.
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center mt-4">
+                    <button class="btn btn-outline-primary btn-sm me-2" onclick="exportStatistics()">
+                        <i class="fas fa-download me-1"></i>Eksport qilish
+                    </button>
+                    <button class="btn btn-outline-info btn-sm" onclick="printStatistics()">
+                        <i class="fas fa-print me-1"></i>Chop etish
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Breakdown -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="dashboard-card">
+                <h5 class="mb-4"><i class="fas fa-calendar-day text-primary me-2"></i>Kunlik Tahlil</h5>
+                <div class="row">
+                    {% for day in daily_breakdown %}
+                    <div class="col-md-2 col-sm-4 col-6 mb-3">
+                        <div class="text-center">
+                            <div class="mb-2">
+                                <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto
+                                    {% if day.percentage >= 80 %}bg-success bg-opacity-10 text-success
+                                    {% elif day.percentage >= 60 %}bg-info bg-opacity-10 text-info
+                                    {% elif day.percentage >= 40 %}bg-warning bg-opacity-10 text-warning
+                                    {% else %}bg-danger bg-opacity-10 text-danger{% endif %}"
+                                    style="width: 60px; height: 60px;">
+                                    <strong>{{ day.percentage }}%</strong>
+                                </div>
+                            </div>
+                            <div class="small">{{ day.day }}</div>
+                            <div class="text-muted small">{{ day.date }}</div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12 text-center py-4">
+                        <div class="text-muted">
+                            <i class="fas fa-calendar-times fa-2x mb-3"></i>
+                            <p>Kunlik ma'lumotlar mavjud emas</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+}
+
+.status-indicator.present {
+    background-color: #28a745;
+    box-shadow: 0 0 5px rgba(40, 167, 69, 0.5);
+}
+
+.status-indicator.absent {
+    background-color: #dc3545;
+    box-shadow: 0 0 5px rgba(220, 53, 69, 0.5);
+}
+
+.status-indicator.late {
+    background-color: #ffc107;
+    box-shadow: 0 0 5px rgba(255, 193, 7, 0.5);
+}
+
+.status-indicator.excused {
+    background-color: #6c757d;
+    box-shadow: 0 0 5px rgba(108, 117, 125, 0.5);
+}
+
+.progress-thin {
+    height: 6px;
+}
+
+.chart-tooltip {
+    background: white;
+    border-radius: 8px;
+    padding: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e9ecef;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .dashboard-card {
+        padding: 15px;
+    }
+
+    h1 {
+        font-size: 1.5rem;
+    }
+
+    h5 {
+        font-size: 1.2rem;
+    }
+
+    .btn-group .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    .table-responsive {
+        font-size: 0.9rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize charts
+    initializeCharts();
+
+    // Load initial data
+    loadChartData();
+});
+
+// Chart instances
+let trendChart = null;
+let statusChart = null;
+let monthlyChart = null;
+
+function initializeCharts() {
+    // Get canvas elements
+    const trendCtx = document.getElementById('attendanceTrendChart').getContext('2d');
+    const statusCtx = document.getElementById('statusDistributionChart').getContext('2d');
+    const monthlyCtx = document.getElementById('monthlyTrendChart').getContext('2d');
+
+    // Destroy existing charts if they exist
+    if (trendChart) trendChart.destroy();
+    if (statusChart) statusChart.destroy();
+    if (monthlyChart) monthlyChart.destroy();
+
+    // Create empty charts with loading state
+    trendChart = new Chart(trendCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Davomat foizi',
+                data: [],
+                borderColor: chartColors.primary,
+                backgroundColor: 'rgba(67, 97, 238, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'white',
+                    titleColor: '#212529',
+                    bodyColor: '#6c757d',
+                    borderColor: '#dee2e6',
+                    borderWidth: 1,
+                    padding: 12,
+                    boxPadding: 6
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                }
+            }
+        }
+    });
+
+    statusChart = new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Qatnashgan', 'Qatnashmagan', 'Kechikkan', 'Sababli'],
+            datasets: [{
+                data: [
+                    {{ status_distribution.present|default:0 }},
+                    {{ status_distribution.absent|default:0 }},
+                    {{ status_distribution.late|default:0 }},
+                    {{ status_distribution.excused|default:0 }}
+                ],
+                backgroundColor: [
+                    '#28a745',
+                    '#dc3545',
+                    '#ffc107',
+                    '#6c757d'
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += context.raw + ' ta';
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    monthlyChart = new Chart(monthlyCtx, {
+        type: 'bar',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Davomat foizi',
+                data: [],
+                backgroundColor: chartColors.primary,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+function loadChartData() {
+    // Load weekly trend data
+    fetch('{% url "student_statistics_data" %}?type=weekly')
+        .then(response => response.json())
+        .then(data => {
+            if (trendChart && data.labels && data.data) {
+                trendChart.data.labels = data.labels;
+                trendChart.data.datasets[0].data = data.data;
+                trendChart.update();
+            }
+        })
+        .catch(error => console.error('Error loading trend data:', error));
+
+    // Load monthly trend data
+    const monthlyTrend = {{ monthly_trend|safe|default:"[]" }};
+    if (monthlyChart && monthlyTrend.length > 0) {
+        const labels = monthlyTrend.map(item => item.month);
+        const data = monthlyTrend.map(item => item.percentage);
+
+        monthlyChart.data.labels = labels;
+        monthlyChart.data.datasets[0].data = data;
+        monthlyChart.update();
+    }
+}
+
+function changePeriod(period) {
+    // Show loading state
+    const cards = document.querySelectorAll('.dashboard-card');
+    cards.forEach(card => {
+        card.style.opacity = '0.7';
+        card.style.pointerEvents = 'none';
+    });
+
+    // Redirect to new period
+    window.location.href = `{% url "student_statistics" %}?period=${period}`;
+}
+
+function changeChartType(type) {
+    const weeklyBtn = document.querySelector('button[onclick*="weekly"]');
+    const monthlyBtn = document.querySelector('button[onclick*="monthly"]');
+
+    if (type === 'weekly') {
+        weeklyBtn.classList.add('active');
+        monthlyBtn.classList.remove('active');
+        fetch('{% url "student_statistics_data" %}?type=weekly')
+            .then(response => response.json())
+            .then(data => {
+                if (trendChart && data.labels && data.data) {
+                    trendChart.data.labels = data.labels;
+                    trendChart.data.datasets[0].data = data.data;
+                    trendChart.update();
+                }
+            });
+    } else {
+        monthlyBtn.classList.add('active');
+        weeklyBtn.classList.remove('active');
+        fetch('{% url "student_statistics_data" %}?type=monthly')
+            .then(response => response.json())
+            .then(data => {
+                if (trendChart && data.labels && data.data) {
+                    trendChart.data.labels = data.labels;
+                    trendChart.data.datasets[0].data = data.data;
+                    trendChart.update();
+                }
+            });
+    }
+}
+
+function refreshStatistics() {
+    const refreshBtn = document.querySelector('button[onclick*="refreshStatistics"]');
+    const originalHtml = refreshBtn.innerHTML;
+
+    refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Yangilanmoqda...';
+    refreshBtn.disabled = true;
+
+    // Reload page after a short delay
+    setTimeout(() => {
+        location.reload();
+    }, 1000);
+}
+
+function exportStatistics() {
+    // Create export data
+    const exportData = {
+        period: '{{ period }}',
+        start_date: '{{ start_date|date:"Y-m-d" }}',
+        end_date: '{{ end_date|date:"Y-m-d" }}',
+        statistics: {
+            total: {{ total }},
+            present: {{ present }},
+            percentage: {{ percentage }},
+            subject_stats: {{ subject_stats|safe|default:"[]" }},
+            monthly_trend: {{ monthly_trend|safe|default:"[]" }}
+        }
+    };
+
+    // Create and download JSON file
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+
+    const exportFileDefaultName = `davomat_statistikasi_{{ request.user.username }}_{{ period }}.json`;
+
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+
+    // Show success message
+    showToast('Muvaffaqiyatli', 'Statistika ma\'lumotlari yuklab olindi!', 'success');
+}
+
+function printStatistics() {
+    // Open print dialog
+    window.print();
+}
+
+function showToast(title, message, type) {
+    // Create toast element
+    const toastId = 'toast-' + Date.now();
+    const toastHtml = `
+        <div class="toast align-items-center text-white bg-${type} border-0"
+             id="${toastId}" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <strong>${title}</strong><br>
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                        data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    `;
+
+    // Add to toast container
+    const container = document.querySelector('.toast-container');
+    if (!container) {
+        const newContainer = document.createElement('div');
+        newContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        document.body.appendChild(newContainer);
+        newContainer.innerHTML = toastHtml;
+    } else {
+        container.innerHTML = toastHtml;
+    }
+
+    // Show toast
+    const toastEl = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastEl);
+    toast.show();
+}
+
+// Handle window resize for responsive charts
+let resizeTimer;
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+        if (trendChart) trendChart.resize();
+        if (statusChart) statusChart.resize();
+        if (monthlyChart) monthlyChart.resize();
+    }, 250);
+});
+
+// Print styles
+window.addEventListener('beforeprint', function() {
+    document.querySelectorAll('.dashboard-card').forEach(card => {
+        card.style.boxShadow = 'none';
+        card.style.border = '1px solid #dee2e6';
+    });
+});
+
+// Initialize tooltips
+var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+});
+</script>
+{% endblock %}
