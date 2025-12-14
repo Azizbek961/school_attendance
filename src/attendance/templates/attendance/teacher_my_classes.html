@@ -168,11 +168,7 @@
                                             title="Ma'lumotlarni ko'rish">
                                         <i class="fas fa-eye"></i>
                                     </button>
-                                    <button type="button" class="btn btn-outline-success"
-                                            onclick="takeAttendance({{ class.id }})"
-                                            title="Davomat olish">
-                                        <i class="fas fa-clipboard-check"></i>
-                                    </button>
+
                                     <button type="button" class="btn btn-outline-info"
                                             onclick="viewAttendanceHistory({{ class.id }})"
                                             title="Davomat tarixi">
@@ -222,11 +218,14 @@
                 <!-- Content will be loaded here -->
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Yopish</button>
-                <button type="button" class="btn btn-primary" id="takeAttendanceBtn" onclick="takeAttendanceFromModal()">
-                    <i class="fas fa-clipboard-check me-1"></i>Davomat olish
-                </button>
+                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                     Yopish
+                 </button>
+
+                 <!-- button o‘rniga yashirin element -->
+                 <div id="takeAttendanceBtn" style="display: none;"></div>
             </div>
+
         </div>
     </div>
 </div>

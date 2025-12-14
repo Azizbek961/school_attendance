@@ -16,19 +16,7 @@
                         </div>
                         <div class="d-flex align-items-center gap-3">
 
-                            <div class="dropdown">
-                                <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center" type="button" data-bs-toggle="dropdown">
-                                    <div class="avatar-circle bg-primary text-white me-2">
-                                        {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
-                                    </div>
-                                    <span>O'qituvchi</span>
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end">
-                                    <li><a class="dropdown-item" href="{% url 'settings' %}"><i class="fas fa-cog me-2"></i> Sozlamalar</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="{% url 'logout' %}"><i class="fas fa-sign-out-alt me-2"></i> Chiqish</a></li>
-                                </ul>
-                            </div>
+
                         </div>
                     </div>
                 </div>
@@ -289,10 +277,7 @@
                 <div class="card-body">
                     <div class="row g-2">
                         <div class="col-6">
-                            <button class="btn btn-outline-primary w-100 h-100 p-3" onclick="takeAttendanceForSubject">
-                                <i class="fas fa-clipboard-check fa-2x mb-2"></i>
-                                <div>Davomat olish</div>
-                            </button>
+
                         </div>
                         <div class="col-6">
                             <a href="{% url 'teacher_my_subjects' %}" class="btn btn-outline-success w-100 h-100 p-3">
